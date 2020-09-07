@@ -1,6 +1,6 @@
-diff -ruNp ./net/include/net/if_inet6.h ./net-slaac-var-plen-v1.2-patch/include/net/if_inet6.h
---- ./net/include/net/if_inet6.h	2020-09-07 19:17:34.342730993 +0200
-+++ ./net-slaac-var-plen-v1.2-patch/include/net/if_inet6.h	2020-09-07 19:28:23.665866736 +0200
+diff -ruNp ./net/include/net/if_inet6.h ./net-slaac-var-plen-v1.1-patch/include/net/if_inet6.h
+--- ./net/include/net/if_inet6.h	2020-09-08 00:18:44.584720151 +0200
++++ ./net-slaac-var-plen-v1.1-patch/include/net/if_inet6.h	2020-09-08 00:26:33.536614371 +0200
 @@ -22,6 +22,12 @@
  #define IF_RS_SENT	0x10
  #define IF_READY	0x80000000
@@ -14,9 +14,44 @@ diff -ruNp ./net/include/net/if_inet6.h ./net-slaac-var-plen-v1.2-patch/include/
  /* prefix flags */
  #define IF_PREFIX_ONLINK	0x01
  #define IF_PREFIX_AUTOCONF	0x02
-diff -ruNp ./net/net/ipv6/addrconf.c ./net-slaac-var-plen-v1.2-patch/net/ipv6/addrconf.c
---- ./net/net/ipv6/addrconf.c	2020-09-07 19:17:34.346064411 +0200
-+++ ./net-slaac-var-plen-v1.2-patch/net/ipv6/addrconf.c	2020-09-07 19:28:33.399446946 +0200
+diff -ruNp ./net/include/uapi/linux/icmpv6.h ./net-slaac-var-plen-v1.1-patch/include/uapi/linux/icmpv6.h
+--- ./net/include/uapi/linux/icmpv6.h	2020-09-08 00:18:45.514743739 +0200
++++ ./net-slaac-var-plen-v1.1-patch/include/uapi/linux/icmpv6.h	2020-09-08 00:26:34.556640243 +0200
+@@ -42,7 +42,9 @@ struct icmp6hdr {
+                 struct icmpv6_nd_ra {
+ 			__u8		hop_limit;
+ #if defined(__LITTLE_ENDIAN_BITFIELD)
+-			__u8		reserved:3,
++			__u8		reserved:1,
++					slaac_var_plen:1,
++					proxy:1,
+ 					router_pref:2,
+ 					home_agent:1,
+ 					other:1,
+@@ -52,8 +54,10 @@ struct icmp6hdr {
+ 			__u8		managed:1,
+ 					other:1,
+ 					home_agent:1,
+-					router_pref:2,
+-					reserved:3;
++					router_pref:2
++					proxy:1,
++					slaac_var_plen:1,
++					reserved:1;
+ #else
+ #error	"Please fix <asm/byteorder.h>"
+ #endif
+@@ -78,6 +82,7 @@ struct icmp6hdr {
+ #define icmp6_addrconf_other	icmp6_dataun.u_nd_ra.other
+ #define icmp6_rt_lifetime	icmp6_dataun.u_nd_ra.rt_lifetime
+ #define icmp6_router_pref	icmp6_dataun.u_nd_ra.router_pref
++#define icmp6_slaac_var_plen	icmp6_dataun.u_nd_ra.slaac_var_plen
+ };
+ 
+ 
+diff -ruNp ./net/net/ipv6/addrconf.c ./net-slaac-var-plen-v1.1-patch/net/ipv6/addrconf.c
+--- ./net/net/ipv6/addrconf.c	2020-09-08 00:18:48.471485399 +0200
++++ ./net-slaac-var-plen-v1.1-patch/net/ipv6/addrconf.c	2020-09-08 00:26:50.623714427 +0200
 @@ -10,7 +10,8 @@
  
  /*
@@ -360,14 +395,14 @@ diff -ruNp ./net/net/ipv6/addrconf.c ./net-slaac-var-plen-v1.2-patch/net/ipv6/ad
  static void ipv6_gen_mode_random_init(struct inet6_dev *idev)
  {
  	struct ipv6_stable_secret *s = &idev->cnf.stable_secret;
-diff -ruNp ./net/net/ipv6/ndisc.c ./net-slaac-var-plen-v1.2-patch/net/ipv6/ndisc.c
---- ./net/net/ipv6/ndisc.c	2020-09-07 19:09:13.090017483 +0200
-+++ ./net-slaac-var-plen-v1.2-patch/net/ipv6/ndisc.c	2020-09-07 19:28:33.399446946 +0200
+diff -ruNp ./net/net/ipv6/ndisc.c ./net-slaac-var-plen-v1.1-patch/net/ipv6/ndisc.c
+--- ./net/net/ipv6/ndisc.c	2020-09-08 00:18:48.531486921 +0200
++++ ./net-slaac-var-plen-v1.1-patch/net/ipv6/ndisc.c	2020-09-08 00:26:50.693716202 +0200
 @@ -1244,6 +1244,8 @@ static void ndisc_router_discovery(struc
  		in6_dev->if_flags |= IF_RA_RCVD;
  	}
  
-+	in6_dev->if_flags |= ra_msg->icmph.icmp6_dataun.u_nd_ra.reserved ?
++	in6_dev->if_flags |= ra_msg->icmph.icmp6_slaac_var_plen ?
 +				 	IF_RA_VAR_PLEN : 0;
  	/*
  	 * Remember the managed/otherconf flags from most recently
