@@ -1,6 +1,24 @@
-diff -ruNp ./net/include/net/if_inet6.h ./net-slaac-var-plen-v1.1-patch/include/net/if_inet6.h
---- ./net/include/net/if_inet6.h	2020-09-08 00:18:44.584720151 +0200
-+++ ./net-slaac-var-plen-v1.1-patch/include/net/if_inet6.h	2020-09-08 00:26:33.536614371 +0200
+SLAAC: variable prefix length (randomly generated hostID or stable privacy + privacy extensions).
+
+The main problem is that SLAAC RA or PD allocates a /64 by the Wireless
+carrier 4G, 5G to mobile hotspot, hovewer segmentation of the /64 via
+SLAAC is required so that downstream interfaces can be further subnetted. 
+
+Example: uCPE device (4G+WI-FI enabled) receives /64 via Wireless, and 
+assigns /72 to VNF-Firewall, /72 to WIFI, /72 to VNF-Router, /72 to 
+Load-Balance and /72 to wired connected devices.
+
+IETF document that defines problem statement: 
+	draft-mishra-6man-varialbe-slaac-problem-statement-00. 
+IETF document that specifies variable slaac: 
+	draft-mishra-6man-varialbe-slaac-problem-statement-00
+
+
+Signed-off-by: Dmytro Shytyi <ietf.dmytro@shytyi.net>
+
+diff -ruNp net/include/net/if_inet6.h net-slaac-var-plen-v1.3-patch/include/net/if_inet6.h
+--- net/include/net/if_inet6.h	2020-09-08 04:37:57.509536613 +0200
++++ net-slaac-var-plen-v1.3-patch/include/net/if_inet6.h	2020-09-08 04:36:04.168136456 +0200
 @@ -22,6 +22,12 @@
  #define IF_RS_SENT	0x10
  #define IF_READY	0x80000000
@@ -8,17 +26,47 @@ diff -ruNp ./net/include/net/if_inet6.h ./net-slaac-var-plen-v1.1-patch/include/
 +/* SLAAC generation of a varialbe network prefix length
 + * draft-mishra-6man-variable-slaac-00
 + * draft-mishra-6man-varialbe-slaac-problem-statement-00
-+ */ 
++ */
 +#define IF_RA_VAR_PLEN	0x08
 +
  /* prefix flags */
  #define IF_PREFIX_ONLINK	0x01
  #define IF_PREFIX_AUTOCONF	0x02
-diff -ruNp ./net/include/uapi/linux/icmpv6.h ./net-slaac-var-plen-v1.1-patch/include/uapi/linux/icmpv6.h
---- ./net/include/uapi/linux/icmpv6.h	2020-09-08 00:18:45.514743739 +0200
-+++ ./net-slaac-var-plen-v1.1-patch/include/uapi/linux/icmpv6.h	2020-09-08 00:26:34.556640243 +0200
-@@ -42,7 +42,9 @@ struct icmp6hdr {
-                 struct icmpv6_nd_ra {
+diff -ruNp net/include/uapi/linux/icmpv6.h net-slaac-var-plen-v1.3-patch/include/uapi/linux/icmpv6.h
+--- net/include/uapi/linux/icmpv6.h	2020-09-08 04:37:58.062876807 +0200
++++ net-slaac-var-plen-v1.3-patch/include/uapi/linux/icmpv6.h	2020-09-08 04:19:10.828497108 +0200
+@@ -22,27 +22,29 @@ struct icmp6hdr {
+ 			__be16		sequence;
+ 		} u_echo;
+ 
+-                struct icmpv6_nd_advt {
++		struct icmpv6_nd_advt {
+ #if defined(__LITTLE_ENDIAN_BITFIELD)
+-                        __u32		reserved:5,
+-                        		override:1,
+-                        		solicited:1,
+-                        		router:1,
++			__u32		reserved:5,
++					override:1,
++					solicited:1,
++					router:1,
+ 					reserved2:24;
+ #elif defined(__BIG_ENDIAN_BITFIELD)
+-                        __u32		router:1,
++			__u32		router:1,
+ 					solicited:1,
+-                        		override:1,
+-                        		reserved:29;
++					override:1,
++					reserved:29;
+ #else
+ #error	"Please fix <asm/byteorder.h>"
+ #endif						
+-                } u_nd_advt;
++		} u_nd_advt;
+ 
+-                struct icmpv6_nd_ra {
++		struct icmpv6_nd_ra {
  			__u8		hop_limit;
  #if defined(__LITTLE_ENDIAN_BITFIELD)
 -			__u8		reserved:3,
@@ -28,7 +76,7 @@ diff -ruNp ./net/include/uapi/linux/icmpv6.h ./net-slaac-var-plen-v1.1-patch/inc
  					router_pref:2,
  					home_agent:1,
  					other:1,
-@@ -52,8 +54,10 @@ struct icmp6hdr {
+@@ -52,13 +54,15 @@ struct icmp6hdr {
  			__u8		managed:1,
  					other:1,
  					home_agent:1,
@@ -41,6 +89,12 @@ diff -ruNp ./net/include/uapi/linux/icmpv6.h ./net-slaac-var-plen-v1.1-patch/inc
  #else
  #error	"Please fix <asm/byteorder.h>"
  #endif
+ 			__be16		rt_lifetime;
+-                } u_nd_ra;
++		} u_nd_ra;
+ 
+ 	} icmp6_dataun;
+ 
 @@ -78,6 +82,7 @@ struct icmp6hdr {
  #define icmp6_addrconf_other	icmp6_dataun.u_nd_ra.other
  #define icmp6_rt_lifetime	icmp6_dataun.u_nd_ra.rt_lifetime
@@ -49,9 +103,9 @@ diff -ruNp ./net/include/uapi/linux/icmpv6.h ./net-slaac-var-plen-v1.1-patch/inc
  };
  
  
-diff -ruNp ./net/net/ipv6/addrconf.c ./net-slaac-var-plen-v1.1-patch/net/ipv6/addrconf.c
---- ./net/net/ipv6/addrconf.c	2020-09-08 00:18:48.471485399 +0200
-+++ ./net-slaac-var-plen-v1.1-patch/net/ipv6/addrconf.c	2020-09-08 00:26:50.623714427 +0200
+diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrconf.c
+--- net/net/ipv6/addrconf.c	2020-09-08 04:37:59.732897521 +0200
++++ net-slaac-var-plen-v1.3-patch/net/ipv6/addrconf.c	2020-09-08 05:24:36.422104906 +0200
 @@ -10,7 +10,8 @@
  
  /*
@@ -62,6 +116,15 @@ diff -ruNp ./net/net/ipv6/addrconf.c ./net-slaac-var-plen-v1.1-patch/net/ipv6/ad
   *	Janos Farkas			:	delete timer on ifdown
   *	<chexum@bankinf.banki.hu>
   *	Andi Kleen			:	kill double kfree on module
+@@ -18,7 +19,7 @@
+  *	Maciej W. Rozycki		:	FDDI support
+  *	sekiya@USAGI			:	Don't send too many RS
+  *						packets.
+- *	yoshfuji@USAGI			:       Fixed interval between DAD
++ *	yoshfuji@USAGI			:	Fixed interval between DAD
+  *						packets.
+  *	YOSHIFUJI Hideaki @USAGI	:	improved accuracy of
+  *						address validation timer.
 @@ -136,13 +137,17 @@ static inline void addrconf_sysctl_unreg
  #endif
  
@@ -74,213 +137,177 @@ diff -ruNp ./net/net/ipv6/addrconf.c ./net-slaac-var-plen-v1.1-patch/net/ipv6/ad
  					const struct inet6_dev *idev);
 -
 +static int ipv6_generate_address_variable_plen(struct in6_addr *address,
-+                                               u8 dad_count,
-+                                               const struct inet6_dev *idev,
-+                                               unsigned int rcvd_prfx_len,
++					       u8 dad_count,
++					       const struct inet6_dev *idev,
++					       unsigned int rcvd_prfx_len,
 +					       bool stable_privacy_mode);
 +unsigned char reverse_bits(unsigned char num);
  #define IN6_ADDR_HSIZE_SHIFT	8
  #define IN6_ADDR_HSIZE		(1 << IN6_ADDR_HSIZE_SHIFT)
  /*
+ 
 @@ -1314,9 +1319,20 @@ static int ipv6_create_tempaddr(struct i
  	struct inet6_ifaddr *ift;
  	struct ifa6_config cfg;
  	long max_desync_factor;
 -	struct in6_addr addr;
 +	struct in6_addr temp, addr;
-+  
++
  	int ret = 0;
  
-+        __int128 host_id;
-+        __int128 net_prfx;
-+        __int128 ipv6addr;
-+        __int128 mask_128;
-+        __int128 mask_host_id;
-+        __int128 mask_net_prfx;
-+        int i;
-+        unsigned char mask_host_id_arr[128];
-+        memset (&mask_128, 0xFF, 16);
++	__int128 host_id;
++	__int128 net_prfx;
++	__int128 ipv6addr;
++	__int128 mask_128;
++	__int128 mask_host_id;
++	__int128 mask_net_prfx;
++	int i;
++	unsigned char mask_host_id_arr[128];
 +
++	memset(&mask_128, 0xFF, 16);
  	write_lock_bh(&idev->lock);
  
  retry:
-@@ -1340,9 +1356,30 @@ retry:
+@@ -1340,9 +1356,29 @@ retry:
  		goto out;
  	}
  	in6_ifa_hold(ifp);
 -	memcpy(addr.s6_addr, ifp->addr.s6_addr, 8);
 -	ipv6_gen_rnd_iid(&addr);
--
-+        if (ifp->prefix_len == 64) {
++	if (ifp->prefix_len == 64) {
 +		memcpy(addr.s6_addr, ifp->addr.s6_addr, 8);
 +		ipv6_gen_rnd_iid(&addr);
 +	} else if (ifp->prefix_len > 0 && ifp->prefix_len < 128) {
 +		memcpy(addr.s6_addr, ifp->addr.s6_addr, 16);
 +		get_random_bytes(temp.s6_addr32, 16);
-+		
++
 +		memcpy(&host_id, temp.s6_addr32, sizeof(host_id));
 +		memcpy(&net_prfx, addr.s6_addr, sizeof(net_prfx));
-+		
++
 +		mask_host_id = mask_128 << ifp->prefix_len;
 +		memcpy(mask_host_id_arr, &mask_host_id, 16);
-+		for (i = 0; i < 127; i++) {
-+		        mask_host_id_arr[i] = reverse_bits(mask_host_id_arr[i]);
-+		}
++		for (i = 0; i < 127; i++)
++			mask_host_id_arr[i] = reverse_bits(mask_host_id_arr[i]);
 +		memcpy(&mask_host_id, mask_host_id_arr, 16);
 +		host_id = host_id & mask_host_id;
-+		
++
 +		mask_net_prfx = mask_128 ^ mask_host_id;
 +		net_prfx = net_prfx & mask_net_prfx;
-+		
+ 
 +		ipv6addr = net_prfx | host_id;
 +		memcpy(addr.s6_addr, &ipv6addr, 16);
 +	}
  	age = (now - ifp->tstamp) / HZ;
  
  	regen_advance = idev->cnf.regen_max_retry *
-@@ -2575,9 +2612,72 @@ int addrconf_prefix_rcv_add_addr(struct
+@@ -2575,9 +2611,60 @@ int addrconf_prefix_rcv_add_addr(struct
  				 u32 addr_flags, bool sllao, bool tokenized,
  				 __u32 valid_lft, u32 prefered_lft)
  {
 -	struct inet6_ifaddr *ifp = ipv6_get_ifaddr(net, addr, dev, 1);
-+
 +	struct inet6_ifaddr *ifp = NULL;
  	int create = 0;
  
 +	if ((in6_dev->if_flags & IF_RA_VAR_PLEN) == IF_RA_VAR_PLEN) {
-+        	struct inet6_ifaddr *result = NULL;
++		struct inet6_ifaddr *result = NULL;
 +		struct inet6_ifaddr *result_base = NULL;
 +		__int128 mask_128;
-+        	__int128 mask_net_prfx;
-+        	__int128 net_prfx;
-+        	__int128 curr_net_prfx;
++		__int128 mask_net_prfx;
++		__int128 net_prfx;
++		__int128 curr_net_prfx;
 +		int hostid_len;
 +		int i;
 +		unsigned char mask_host_id_arr[128];
-+		memset(&mask_128,0xFF,16);
 +
-+	        
-+
++		memset(&mask_128, 0xFF, 16);
 +		result_base = result;
 +		rcu_read_lock();
 +		list_for_each_entry_rcu(ifp, &in6_dev->addr_list, if_list) {
 +			if (!net_eq(dev_net(ifp->idev->dev), net))
-+			        continue;
-+			// 128bit network prefix mask calculation 
++				continue;
++			// 128bit network prefix mask calculation
 +			hostid_len = 128 - pinfo->prefix_len;
-+			mask_net_prfx = mask_128 << pinfo->prefix_len; 
-+			mask_net_prfx = ~mask_net_prfx;	
-+			memcpy (mask_host_id_arr, &mask_net_prfx, 16);
-+			for (i = 0; i < 127; i++) 
++			mask_net_prfx = mask_128 << pinfo->prefix_len;
++			mask_net_prfx = ~mask_net_prfx;
++			memcpy(mask_host_id_arr, &mask_net_prfx, 16);
++			for (i = 0; i < 127; i++)
 +				mask_host_id_arr[i] = reverse_bits(mask_host_id_arr[i]);
-+			memcpy (&mask_net_prfx, mask_host_id_arr, 16);
-+			
++			memcpy(&mask_net_prfx, mask_host_id_arr, 16);
 +
 +			//Received/new IPv6 prefix
 +			memcpy(&net_prfx, pinfo->prefix.s6_addr32, 16);
 +			net_prfx &= mask_net_prfx;
-+				
-+			//netdev_dbg (dev, "Received IPv6 hight %016llx/n", (uint64_t) (net_prfx >> 64));
-+			//netdev_dbg (dev, "Received IPv6 low  %016llx/n", net_prfx);
-+			
++
 +			//Configured/old IPv6 prefix
 +			memcpy(&curr_net_prfx, ifp->addr.s6_addr32, 16);
 +			curr_net_prfx &=  mask_net_prfx;
-+			//netdev_dbg(dev, "Configured IPv6 hight  %016llx/n", (uint64_t) (curr_net_prfx >>64));
-+			//netdev_dbg(dev, "Configured IPv6 low %016llx/n", curr_net_prfx);
-+			
++
 +			//IPv6 prefixes comparison
-+			if ((net_prfx ^ curr_net_prfx) == 0 && 
++			if ((net_prfx ^ curr_net_prfx) == 0 &&
 +			    pinfo->prefix_len == ifp->prefix_len) {
-+					netdev_dbg(dev, "addrconf: Identic IPv6 address with length (!=64) received in the RA /n");
-+					result = ifp;
-+			                in6_ifa_hold(ifp);
-+			                break;
++				result = ifp;
++				in6_ifa_hold(ifp);
++				break;
 +			}
-+			
 +		}
 +		rcu_read_unlock();
-+		if (result_base != result) {
++		if (result_base != result)
 +			ifp = result;
-+		} else {
++		else
 +			ifp = NULL;
-+		}
-+        } else {
++	} else {
 +		ifp = ipv6_get_ifaddr(net, addr, dev, 1);
-+	}	
-+	
++	}
++
  	if (!ifp && valid_lft) {
  		int max_addresses = in6_dev->cnf.max_addresses;
  		struct ifa6_config cfg = {
-@@ -2670,6 +2770,7 @@ void addrconf_prefix_rcv(struct net_devi
- 
- 	if (len < sizeof(struct prefix_info)) {
- 		netdev_dbg(dev, "addrconf: prefix option too short\n");
-+		netdev_dbg(dev, "addrconf: prefix option too short\n");
- 		return;
- 	}
- 
-@@ -2752,9 +2853,8 @@ void addrconf_prefix_rcv(struct net_devi
- 		}
- 		fib6_info_release(rt);
- 	}
--
-+	
- 	/* Try to figure out our local address for this prefix */
--
- 	if (pinfo->autoconf && in6_dev->cnf.autoconf) {
- 		struct in6_addr addr;
- 		bool tokenized = false, dev_addr_generated = false;
-@@ -2780,9 +2880,37 @@ void addrconf_prefix_rcv(struct net_devi
+@@ -2780,9 +2867,34 @@ void addrconf_prefix_rcv(struct net_devi
  				dev_addr_generated = true;
  			}
  			goto ok;
--		}
--		net_dbg_ratelimited("IPv6 addrconf: prefix with wrong length %d\n",
--				    pinfo->prefix_len);
-+		} else if (((in6_dev->if_flags & IF_RA_VAR_PLEN) == IF_RA_VAR_PLEN) && 
++		} else if (((in6_dev->if_flags & IF_RA_VAR_PLEN) == IF_RA_VAR_PLEN) &&
 +			  pinfo->prefix_len > 0 && pinfo->prefix_len < 128) {
-+			
 +			/* SLAAC generation of a varialbe network prefix length.
 +			 * draft-mishra-6man-variable-slaac-00
 +			 * draft-mishra-6man-varialbe-slaac-problem-statement-00
 +			 * Contact: Dmytro Shytyi.
-+			 */ 
-+                        memcpy(&addr, &pinfo->prefix, 16);
-+                        if (in6_dev->cnf.addr_gen_mode == IN6_ADDR_GEN_MODE_STABLE_PRIVACY) {
++			 */
++			memcpy(&addr, &pinfo->prefix, 16);
++			if (in6_dev->cnf.addr_gen_mode == IN6_ADDR_GEN_MODE_STABLE_PRIVACY) {
 +				if (!ipv6_generate_address_variable_plen(&addr,
-+							 	    	0,
-+							 	    	in6_dev,
-+                                                                    	pinfo->prefix_len,
-+								    	true)) {
++									 0,
++									 in6_dev,
++									 pinfo->prefix_len,
++									 true)) {
 +					addr_flags |= IFA_F_STABLE_PRIVACY;
 +					goto ok;
 +			}
 +			} else if (!ipv6_generate_address_variable_plen(&addr,
-+                                                                       0,
-+                                                                       in6_dev,
-+                                                                       pinfo->prefix_len,
-+                                                                       false)) {
-+                                        goto ok;
-+                        }
-+
-+				
-+                } else {
-+                        net_dbg_ratelimited("IPv6 addrconf: Prefix with unexpected length %d\n",
-+                                    pinfo->prefix_len);
-+                }
++									0,
++									in6_dev,
++									pinfo->prefix_len,
++									false)) {
++				goto ok;
++			}
++		} else {
++			net_dbg_ratelimited("IPv6: Prefix with unexpected length %d\n",
++					    pinfo->prefix_len);
+ 		}
+-		net_dbg_ratelimited("IPv6 addrconf: prefix with wrong length %d\n",
+-				    pinfo->prefix_len);
  		goto put;
  
  ok:
-@@ -3263,6 +3391,122 @@ retry:
+@@ -3263,6 +3375,119 @@ retry:
  	return 0;
  }
  
 +unsigned char reverse_bits(unsigned char num)
 +{
-+	unsigned char count = sizeof(num)*8-1;
++	unsigned char count = sizeof(num) * 8 - 1;
 +	unsigned char reverse_num = num;
-+	
++
 +	num >>= 1;
 +	while (num) {
 +		reverse_num <<= 1;
@@ -293,69 +320,68 @@ diff -ruNp ./net/net/ipv6/addrconf.c ./net-slaac-var-plen-v1.1-patch/net/ipv6/ad
 +}
 +
 +static int ipv6_generate_address_variable_plen(struct in6_addr *address,
-+						u8 dad_count,
-+						const struct inet6_dev *idev,
-+						unsigned int rcvd_prfx_len,
-+						bool stable_privacy_mode)
++					       u8 dad_count,
++					       const struct inet6_dev *idev,
++					       unsigned int rcvd_prfx_len,
++					       bool stable_privacy_mode)
 +{
 +	static DEFINE_SPINLOCK(lock);
-+        static __u32 digest[SHA1_DIGEST_WORDS];
-+        static __u32 workspace[SHA1_WORKSPACE_WORDS];
++	static __u32 digest[SHA1_DIGEST_WORDS];
++	static __u32 workspace[SHA1_WORKSPACE_WORDS];
 +
-+        static union {
-+                char __data[SHA1_BLOCK_SIZE];
-+                struct {
-+                        struct in6_addr secret;
-+                        __be32 prefix[2];
-+                        unsigned char hwaddr[MAX_ADDR_LEN];
-+                        u8 dad_count;
-+                } __packed;
-+        } data;
++	static union {
++		char __data[SHA1_BLOCK_SIZE];
++		struct {
++			struct in6_addr secret;
++			__be32 prefix[2];
++			unsigned char hwaddr[MAX_ADDR_LEN];
++			u8 dad_count;
++		} __packed;
++	} data;
 +
-+        struct in6_addr secret;
-+        struct in6_addr temp;
-+        struct net *net = dev_net(idev->dev);
-+        __int128 host_id;
-+        __int128 net_prfx;
-+        __int128 ipv6addr;
-+        __int128 mask_128;
-+        __int128 mask_host_id;
-+        __int128 mask_net_prfx;
-+        int i;
-+        unsigned char mask_host_id_arr[128];
-+        
-+        
-+        memset(&mask_128,0xFF,16);
-+        BUILD_BUG_ON(sizeof(data.__data) != sizeof(data));
++	struct in6_addr secret;
++	struct in6_addr temp;
++	struct net *net = dev_net(idev->dev);
++	__int128 host_id;
++	__int128 net_prfx;
++	__int128 ipv6addr;
++	__int128 mask_128;
++	__int128 mask_host_id;
++	__int128 mask_net_prfx;
++	int i;
++	unsigned char mask_host_id_arr[128];
 +
-+        if (stable_privacy_mode) {
-+        	if (idev->cnf.stable_secret.initialized)
-+        	        secret = idev->cnf.stable_secret.secret;
-+        	else if (net->ipv6.devconf_dflt->stable_secret.initialized)
-+        	        secret = net->ipv6.devconf_dflt->stable_secret.secret;
-+        	else
-+        	        return -1;
++	memset(&mask_128, 0xFF, 16);
++	BUILD_BUG_ON(sizeof(data.__data) != sizeof(data));
++
++	if (stable_privacy_mode) {
++		if (idev->cnf.stable_secret.initialized)
++			secret = idev->cnf.stable_secret.secret;
++		else if (net->ipv6.devconf_dflt->stable_secret.initialized)
++			secret = net->ipv6.devconf_dflt->stable_secret.secret;
++		else
++			return -1;
 +	}
 +
-+retry:	
++retry:
 +	spin_lock_bh(&lock);
 +	if (stable_privacy_mode) {
 +		sha1_init(digest);
-+        	memset(&data, 0, sizeof(data));
-+        	memset(workspace, 0, sizeof(workspace));
-+        	memcpy(data.hwaddr, idev->dev->perm_addr, idev->dev->addr_len);
-+        	data.prefix[0] = address->s6_addr32[0];
-+        	data.prefix[1] = address->s6_addr32[1];
-+        	data.secret = secret;
-+        	data.dad_count = dad_count;
++		memset(&data, 0, sizeof(data));
++		memset(workspace, 0, sizeof(workspace));
++		memcpy(data.hwaddr, idev->dev->perm_addr, idev->dev->addr_len);
++		data.prefix[0] = address->s6_addr32[0];
++		data.prefix[1] = address->s6_addr32[1];
++		data.secret = secret;
++		data.dad_count = dad_count;
 +
-+        	sha1_transform(digest, data.__data, workspace);
++		sha1_transform(digest, data.__data, workspace);
 +
-+        	temp = *address;
++		temp = *address;
 +		temp.s6_addr32[0] = (__force __be32)digest[0];
 +		temp.s6_addr32[1] = (__force __be32)digest[1];
 +		temp.s6_addr32[2] = (__force __be32)digest[2];
-+        	temp.s6_addr32[3] = (__force __be32)digest[3];
++		temp.s6_addr32[3] = (__force __be32)digest[3];
 +	} else {
 +		temp = *address;
 +		get_random_bytes(temp.s6_addr32, 16);
@@ -363,47 +389,45 @@ diff -ruNp ./net/net/ipv6/addrconf.c ./net-slaac-var-plen-v1.1-patch/net/ipv6/ad
 +	spin_unlock_bh(&lock);
 +
 +	if (ipv6_reserved_interfaceid(temp)) {
-+                dad_count++;
-+                if (dad_count > dev_net(idev->dev)->ipv6.sysctl.idgen_retries)
-+                        return -1;
-+                goto retry;
-+        }
-+
++		dad_count++;
++		if (dad_count > dev_net(idev->dev)->ipv6.sysctl.idgen_retries)
++			return -1;
++		goto retry;
++	}
 +
 +	memcpy(&host_id, temp.s6_addr32, 16);
 +	memcpy(&net_prfx, address->s6_addr32, 16);
-+	
++
 +	mask_host_id = mask_128 << rcvd_prfx_len;
-+	memcpy (mask_host_id_arr, &mask_host_id, 16);
-+	for (i = 0; i < 127; i++) {
-+		 mask_host_id_arr[i] = reverse_bits(mask_host_id_arr[i]);
-+	}
-+	memcpy (&mask_host_id, mask_host_id_arr, 16);
++	memcpy(mask_host_id_arr, &mask_host_id, 16);
++	for (i = 0; i < 127; i++)
++		mask_host_id_arr[i] = reverse_bits(mask_host_id_arr[i]);
++	memcpy(&mask_host_id, mask_host_id_arr, 16);
 +	host_id = host_id & mask_host_id;
-+	
++
 +	mask_net_prfx = mask_128 ^ mask_host_id;
 +	net_prfx = net_prfx & mask_net_prfx;
-+	
++
 +	ipv6addr = net_prfx | host_id;
 +	memcpy(temp.s6_addr32, &ipv6addr, 16);
-+	
++
 +	*address = temp;
-+	
++
 +	return 0;
 +}
 +
  static void ipv6_gen_mode_random_init(struct inet6_dev *idev)
  {
  	struct ipv6_stable_secret *s = &idev->cnf.stable_secret;
-diff -ruNp ./net/net/ipv6/ndisc.c ./net-slaac-var-plen-v1.1-patch/net/ipv6/ndisc.c
---- ./net/net/ipv6/ndisc.c	2020-09-08 00:18:48.531486921 +0200
-+++ ./net-slaac-var-plen-v1.1-patch/net/ipv6/ndisc.c	2020-09-08 00:26:50.693716202 +0200
+diff -ruNp net/net/ipv6/ndisc.c net-slaac-var-plen-v1.3-patch/net/ipv6/ndisc.c
+--- net/net/ipv6/ndisc.c	2020-09-08 04:37:59.779564766 +0200
++++ net-slaac-var-plen-v1.3-patch/net/ipv6/ndisc.c	2020-09-08 04:20:21.149306377 +0200
 @@ -1244,6 +1244,8 @@ static void ndisc_router_discovery(struc
  		in6_dev->if_flags |= IF_RA_RCVD;
  	}
  
 +	in6_dev->if_flags |= ra_msg->icmph.icmp6_slaac_var_plen ?
-+				 	IF_RA_VAR_PLEN : 0;
++					IF_RA_VAR_PLEN : 0;
  	/*
  	 * Remember the managed/otherconf flags from most recently
  	 * received RA message (RFC 2462) -- yoshfuji
