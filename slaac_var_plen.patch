@@ -1,3 +1,20 @@
+SLAAC: variable prefix length (randomly generated hostID or stable privacy + privacy extensions).
+
+The main problem is that SLAAC RA or PD allocates a /64 by the Wireless
+carrier 4G, 5G to a mobile hotspot, however segmentation of the /64 via
+SLAAC is required so that downstream interfaces can be further subnetted.
+
+Example: uCPE device (4G+WI-FI enabled) receives /64 via Wireless, and
+assigns /72 to VNF-Firewall, /72 to WIFI, /72 to VNF-Router, /72 to
+Load-Balance and /72 to wired connected devices.
+
+IETF document that defines problem statement:
+draft-mishra-6man-varialbe-slaac-problem-statement-00.
+IETF document that specifies variable slaac:
+draft-mishra-6man-varialbe-slaac-problem-statement-00
+
+Signed-off-by: Dmytro Shytyi <ietf.dmytro@shytyi.net>
+
 diff -ruNp net/include/net/if_inet6.h net-patch/include/net/if_inet6.h
 --- net/include/net/if_inet6.h	2020-09-08 15:15:33.932599638 +0200
 +++ net-patch/include/net/if_inet6.h	2020-09-08 15:23:34.625577654 +0200
