@@ -242,7 +242,7 @@ diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrco
 +			memcpy(&curr_net_prfx, ifp->addr.s6_addr32, 16);
 +			curr_net_prfx &=  mask_net_prfx;
 +
-+			/* IPv6 prefixes comparison */
++			//IPv6 prefixes comparison
 +			if ((net_prfx ^ curr_net_prfx) == 0 &&
 +			    pinfo->prefix_len == ifp->prefix_len) {
 +				result = ifp;
