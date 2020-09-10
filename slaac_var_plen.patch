@@ -14,6 +14,7 @@ IETF document that specifies variable slaac:
 draft-mishra-6man-variable-slaac-00
 
 Signed-off-by: Dmytro Shytyi <ietf.dmytro@shytyi.net>
+Reviewed-by:
 
 diff -ruNp net/include/net/if_inet6.h net-patch/include/net/if_inet6.h
 --- net/include/net/if_inet6.h	2020-09-10 16:36:00.335331817 +0200
