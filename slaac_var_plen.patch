@@ -174,7 +174,7 @@ diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
 +		list_for_each_entry_rcu(ifp, &in6_dev->addr_list, if_list) {
 +			if (!net_eq(dev_net(ifp->idev->dev), net))
 +				continue;
-+			// 128bit network prefix mask calculation
++			/* 128bit network prefix mask calculation */
 +			hostid_len = 128 - pinfo->prefix_len;
 +			mask_net_prfx = mask_128 << pinfo->prefix_len;
 +			mask_net_prfx = ~mask_net_prfx;
@@ -183,11 +183,11 @@ diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
 +				mask_host_id_arr[i] = reverse_bits(mask_host_id_arr[i]);
 +			memcpy(&mask_net_prfx, mask_host_id_arr, 16);
 +
-+			//Received/new IPv6 prefix
++			/* Received/new IPv6 prefix */
 +			memcpy(&net_prfx, pinfo->prefix.s6_addr32, 16);
 +			net_prfx &= mask_net_prfx;
 +
-+			//Configured/old IPv6 prefix
++			/* Configured/old IPv6 prefix */
 +			memcpy(&curr_net_prfx, ifp->addr.s6_addr32, 16);
 +			curr_net_prfx &=  mask_net_prfx;
 +

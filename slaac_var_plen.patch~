@@ -1,24 +1,23 @@
 SLAAC: variable prefix length (randomly generated hostID or stable privacy + privacy extensions).
 
 The main problem is that SLAAC RA or PD allocates a /64 by the Wireless
-carrier 4G, 5G to mobile hotspot, hovewer segmentation of the /64 via
-SLAAC is required so that downstream interfaces can be further subnetted. 
+carrier 4G, 5G to a mobile hotspot, however segmentation of the /64 via
+SLAAC is required so that downstream interfaces can be further subnetted.
 
-Example: uCPE device (4G+WI-FI enabled) receives /64 via Wireless, and 
-assigns /72 to VNF-Firewall, /72 to WIFI, /72 to VNF-Router, /72 to 
+Example: uCPE device (4G+WI-FI enabled) receives /64 via Wireless, and
+assigns /72 to VNF-Firewall, /72 to WIFI, /72 to VNF-Router, /72 to
 Load-Balance and /72 to wired connected devices.
 
-IETF document that defines problem statement: 
-	draft-mishra-6man-varialbe-slaac-problem-statement-00. 
-IETF document that specifies variable slaac: 
-	draft-mishra-6man-varialbe-slaac-problem-statement-00
-
+IETF document that defines problem statement:
+draft-mishra-6man-varialbe-slaac-problem-statement-00.
+IETF document that specifies variable slaac:
+draft-mishra-6man-varialbe-slaac-problem-statement-00
 
 Signed-off-by: Dmytro Shytyi <ietf.dmytro@shytyi.net>
 
-diff -ruNp net/include/net/if_inet6.h net-slaac-var-plen-v1.3-patch/include/net/if_inet6.h
---- net/include/net/if_inet6.h	2020-09-08 04:37:57.509536613 +0200
-+++ net-slaac-var-plen-v1.3-patch/include/net/if_inet6.h	2020-09-08 04:36:04.168136456 +0200
+diff -ruNp net/include/net/if_inet6.h net-patch/include/net/if_inet6.h
+--- net/include/net/if_inet6.h	2020-09-08 15:15:33.932599638 +0200
++++ net-patch/include/net/if_inet6.h	2020-09-08 15:23:34.625577654 +0200
 @@ -22,6 +22,12 @@
  #define IF_RS_SENT	0x10
  #define IF_READY	0x80000000
@@ -32,41 +31,11 @@ diff -ruNp net/include/net/if_inet6.h net-slaac-var-plen-v1.3-patch/include/net/
  /* prefix flags */
  #define IF_PREFIX_ONLINK	0x01
  #define IF_PREFIX_AUTOCONF	0x02
-diff -ruNp net/include/uapi/linux/icmpv6.h net-slaac-var-plen-v1.3-patch/include/uapi/linux/icmpv6.h
---- net/include/uapi/linux/icmpv6.h	2020-09-08 04:37:58.062876807 +0200
-+++ net-slaac-var-plen-v1.3-patch/include/uapi/linux/icmpv6.h	2020-09-08 04:19:10.828497108 +0200
-@@ -22,27 +22,29 @@ struct icmp6hdr {
- 			__be16		sequence;
- 		} u_echo;
- 
--                struct icmpv6_nd_advt {
-+		struct icmpv6_nd_advt {
- #if defined(__LITTLE_ENDIAN_BITFIELD)
--                        __u32		reserved:5,
--                        		override:1,
--                        		solicited:1,
--                        		router:1,
-+			__u32		reserved:5,
-+					override:1,
-+					solicited:1,
-+					router:1,
- 					reserved2:24;
- #elif defined(__BIG_ENDIAN_BITFIELD)
--                        __u32		router:1,
-+			__u32		router:1,
- 					solicited:1,
--                        		override:1,
--                        		reserved:29;
-+					override:1,
-+					reserved:29;
- #else
- #error	"Please fix <asm/byteorder.h>"
- #endif						
--                } u_nd_advt;
-+		} u_nd_advt;
- 
--                struct icmpv6_nd_ra {
-+		struct icmpv6_nd_ra {
+diff -ruNp net/include/uapi/linux/icmpv6.h net-patch/include/uapi/linux/icmpv6.h
+--- net/include/uapi/linux/icmpv6.h	2020-09-08 15:15:34.885945489 +0200
++++ net-patch/include/uapi/linux/icmpv6.h	2020-09-08 15:28:59.243173110 +0200
+@@ -42,7 +42,9 @@ struct icmp6hdr {
+                 struct icmpv6_nd_ra {
  			__u8		hop_limit;
  #if defined(__LITTLE_ENDIAN_BITFIELD)
 -			__u8		reserved:3,
@@ -76,62 +45,41 @@ diff -ruNp net/include/uapi/linux/icmpv6.h net-slaac-var-plen-v1.3-patch/include
  					router_pref:2,
  					home_agent:1,
  					other:1,
-@@ -52,13 +54,15 @@ struct icmp6hdr {
- 			__u8		managed:1,
+@@ -53,7 +55,9 @@ struct icmp6hdr {
  					other:1,
  					home_agent:1,
--					router_pref:2,
+ 					router_pref:2,
 -					reserved:3;
-+					router_pref:2
 +					proxy:1,
 +					slaac_var_plen:1,
 +					reserved:1;
  #else
  #error	"Please fix <asm/byteorder.h>"
  #endif
- 			__be16		rt_lifetime;
--                } u_nd_ra;
-+		} u_nd_ra;
- 
- 	} icmp6_dataun;
- 
-@@ -78,6 +82,7 @@ struct icmp6hdr {
+@@ -78,9 +82,9 @@ struct icmp6hdr {
  #define icmp6_addrconf_other	icmp6_dataun.u_nd_ra.other
  #define icmp6_rt_lifetime	icmp6_dataun.u_nd_ra.rt_lifetime
  #define icmp6_router_pref	icmp6_dataun.u_nd_ra.router_pref
 +#define icmp6_slaac_var_plen	icmp6_dataun.u_nd_ra.slaac_var_plen
  };
  
- 
-diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrconf.c
---- net/net/ipv6/addrconf.c	2020-09-08 04:37:59.732897521 +0200
-+++ net-slaac-var-plen-v1.3-patch/net/ipv6/addrconf.c	2020-09-08 05:24:36.422104906 +0200
-@@ -10,7 +10,8 @@
- 
+-
+ #define ICMPV6_ROUTER_PREF_LOW		0x3
+ #define ICMPV6_ROUTER_PREF_MEDIUM	0x0
+ #define ICMPV6_ROUTER_PREF_HIGH		0x1
+diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
+--- net/net/ipv6/addrconf.c	2020-09-08 15:15:38.015986585 +0200
++++ net-patch/net/ipv6/addrconf.c	2020-09-08 15:35:10.694716803 +0200
+@@ -11,6 +11,8 @@
  /*
   *	Changes:
-- *
+  *
 + *	Dmytro Shytyi			:	SLAAC: variable network
 + *	<ietf.dmytro@shytyi.net>		prefix length.
   *	Janos Farkas			:	delete timer on ifdown
   *	<chexum@bankinf.banki.hu>
   *	Andi Kleen			:	kill double kfree on module
-@@ -18,7 +19,7 @@
-  *	Maciej W. Rozycki		:	FDDI support
-  *	sekiya@USAGI			:	Don't send too many RS
-  *						packets.
-- *	yoshfuji@USAGI			:       Fixed interval between DAD
-+ *	yoshfuji@USAGI			:	Fixed interval between DAD
-  *						packets.
-  *	YOSHIFUJI Hideaki @USAGI	:	improved accuracy of
-  *						address validation timer.
-@@ -136,13 +137,17 @@ static inline void addrconf_sysctl_unreg
- #endif
- 
- static void ipv6_gen_rnd_iid(struct in6_addr *addr);
--
- static int ipv6_generate_eui64(u8 *eui, struct net_device *dev);
- static int ipv6_count_addresses(const struct inet6_dev *idev);
+@@ -142,7 +144,12 @@ static int ipv6_count_addresses(const st
  static int ipv6_generate_stable_address(struct in6_addr *addr,
  					u8 dad_count,
  					const struct inet6_dev *idev);
@@ -145,12 +93,12 @@ diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrco
  #define IN6_ADDR_HSIZE_SHIFT	8
  #define IN6_ADDR_HSIZE		(1 << IN6_ADDR_HSIZE_SHIFT)
  /*
- 
-@@ -1314,9 +1319,20 @@ static int ipv6_create_tempaddr(struct i
+@@ -1314,9 +1321,21 @@ static int ipv6_create_tempaddr(struct i
  	struct inet6_ifaddr *ift;
  	struct ifa6_config cfg;
  	long max_desync_factor;
 -	struct in6_addr addr;
++
 +	struct in6_addr temp, addr;
 +
  	int ret = 0;
@@ -168,12 +116,13 @@ diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrco
  	write_lock_bh(&idev->lock);
  
  retry:
-@@ -1340,9 +1356,29 @@ retry:
+@@ -1340,9 +1359,30 @@ retry:
  		goto out;
  	}
  	in6_ifa_hold(ifp);
 -	memcpy(addr.s6_addr, ifp->addr.s6_addr, 8);
 -	ipv6_gen_rnd_iid(&addr);
+ 
 +	if (ifp->prefix_len == 64) {
 +		memcpy(addr.s6_addr, ifp->addr.s6_addr, 8);
 +		ipv6_gen_rnd_iid(&addr);
@@ -193,14 +142,14 @@ diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrco
 +
 +		mask_net_prfx = mask_128 ^ mask_host_id;
 +		net_prfx = net_prfx & mask_net_prfx;
- 
++
 +		ipv6addr = net_prfx | host_id;
 +		memcpy(addr.s6_addr, &ipv6addr, 16);
 +	}
  	age = (now - ifp->tstamp) / HZ;
  
  	regen_advance = idev->cnf.regen_max_retry *
-@@ -2575,9 +2611,60 @@ int addrconf_prefix_rcv_add_addr(struct
+@@ -2575,9 +2615,60 @@ int addrconf_prefix_rcv_add_addr(struct
  				 u32 addr_flags, bool sllao, bool tokenized,
  				 __u32 valid_lft, u32 prefered_lft)
  {
@@ -242,7 +191,7 @@ diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrco
 +			memcpy(&curr_net_prfx, ifp->addr.s6_addr32, 16);
 +			curr_net_prfx &=  mask_net_prfx;
 +
-+			//IPv6 prefixes comparison
++			/* IPv6 prefixes comparison */
 +			if ((net_prfx ^ curr_net_prfx) == 0 &&
 +			    pinfo->prefix_len == ifp->prefix_len) {
 +				result = ifp;
@@ -262,10 +211,11 @@ diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrco
  	if (!ifp && valid_lft) {
  		int max_addresses = in6_dev->cnf.max_addresses;
  		struct ifa6_config cfg = {
-@@ -2780,9 +2867,34 @@ void addrconf_prefix_rcv(struct net_devi
+@@ -2780,9 +2871,35 @@ void addrconf_prefix_rcv(struct net_devi
  				dev_addr_generated = true;
  			}
  			goto ok;
++		goto put;
 +		} else if (((in6_dev->if_flags & IF_RA_VAR_PLEN) == IF_RA_VAR_PLEN) &&
 +			  pinfo->prefix_len > 0 && pinfo->prefix_len < 128) {
 +			/* SLAAC generation of a varialbe network prefix length.
@@ -299,7 +249,7 @@ diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrco
  		goto put;
  
  ok:
-@@ -3263,6 +3375,119 @@ retry:
+@@ -3263,6 +3380,119 @@ retry:
  	return 0;
  }
  
@@ -419,9 +369,9 @@ diff -ruNp net/net/ipv6/addrconf.c net-slaac-var-plen-v1.3-patch/net/ipv6/addrco
  static void ipv6_gen_mode_random_init(struct inet6_dev *idev)
  {
  	struct ipv6_stable_secret *s = &idev->cnf.stable_secret;
-diff -ruNp net/net/ipv6/ndisc.c net-slaac-var-plen-v1.3-patch/net/ipv6/ndisc.c
---- net/net/ipv6/ndisc.c	2020-09-08 04:37:59.779564766 +0200
-+++ net-slaac-var-plen-v1.3-patch/net/ipv6/ndisc.c	2020-09-08 04:20:21.149306377 +0200
+diff -ruNp net/net/ipv6/ndisc.c net-patch/net/ipv6/ndisc.c
+--- net/net/ipv6/ndisc.c	2020-09-08 15:15:38.069320619 +0200
++++ net-patch/net/ipv6/ndisc.c	2020-09-08 15:35:55.448637743 +0200
 @@ -1244,6 +1244,8 @@ static void ndisc_router_discovery(struc
  		in6_dev->if_flags |= IF_RA_RCVD;
  	}
