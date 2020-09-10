@@ -9,22 +9,22 @@ assigns /72 to VNF-Firewall, /72 to WIFI, /72 to VNF-Router, /72 to
 Load-Balance and /72 to wired connected devices.
 
 IETF document that defines problem statement:
-draft-mishra-6man-varialbe-slaac-problem-statement-00.
+draft-mishra-6man-slaac-with-prefixes-a-problem-statement-00.
 IETF document that specifies variable slaac:
-draft-mishra-6man-varialbe-slaac-problem-statement-00
+draft-mishra-6man-variable-slaac-00
 
 Signed-off-by: Dmytro Shytyi <ietf.dmytro@shytyi.net>
 
 diff -ruNp net/include/net/if_inet6.h net-patch/include/net/if_inet6.h
---- net/include/net/if_inet6.h	2020-09-08 15:15:33.932599638 +0200
-+++ net-patch/include/net/if_inet6.h	2020-09-08 15:23:34.625577654 +0200
+--- net/include/net/if_inet6.h	2020-09-10 16:36:00.335331817 +0200
++++ net-patch/include/net/if_inet6.h	2020-09-10 16:36:49.399316745 +0200
 @@ -22,6 +22,12 @@
  #define IF_RS_SENT	0x10
  #define IF_READY	0x80000000
  
-+/* SLAAC generation of a varialbe network prefix length
++/* SLAAC generation of a variable network prefix length
 + * draft-mishra-6man-variable-slaac-00
-+ * draft-mishra-6man-variable-slaac-problem-statement-00
++ * draft-mishra-6man-slaac-with-prefixes-a-problem-statement-00
 + */
 +#define IF_RA_VAR_PLEN	0x08
 +
@@ -32,8 +32,8 @@ diff -ruNp net/include/net/if_inet6.h net-patch/include/net/if_inet6.h
  #define IF_PREFIX_ONLINK	0x01
  #define IF_PREFIX_AUTOCONF	0x02
 diff -ruNp net/include/uapi/linux/icmpv6.h net-patch/include/uapi/linux/icmpv6.h
---- net/include/uapi/linux/icmpv6.h	2020-09-08 15:15:34.885945489 +0200
-+++ net-patch/include/uapi/linux/icmpv6.h	2020-09-08 15:28:59.243173110 +0200
+--- net/include/uapi/linux/icmpv6.h	2020-09-10 16:36:01.172009593 +0200
++++ net-patch/include/uapi/linux/icmpv6.h	2020-09-10 16:36:49.399316745 +0200
 @@ -42,7 +42,9 @@ struct icmp6hdr {
                  struct icmpv6_nd_ra {
  			__u8		hop_limit;
@@ -68,8 +68,8 @@ diff -ruNp net/include/uapi/linux/icmpv6.h net-patch/include/uapi/linux/icmpv6.h
  #define ICMPV6_ROUTER_PREF_MEDIUM	0x0
  #define ICMPV6_ROUTER_PREF_HIGH		0x1
 diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
---- net/net/ipv6/addrconf.c	2020-09-08 15:15:38.015986585 +0200
-+++ net-patch/net/ipv6/addrconf.c	2020-09-08 15:35:10.694716803 +0200
+--- net/net/ipv6/addrconf.c	2020-09-10 16:36:04.038714330 +0200
++++ net-patch/net/ipv6/addrconf.c	2020-09-10 16:36:49.402650123 +0200
 @@ -11,6 +11,8 @@
  /*
   *	Changes:
@@ -149,7 +149,7 @@ diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
  	age = (now - ifp->tstamp) / HZ;
  
  	regen_advance = idev->cnf.regen_max_retry *
-@@ -2575,9 +2615,60 @@ int addrconf_prefix_rcv_add_addr(struct
+@@ -2575,9 +2615,61 @@ int addrconf_prefix_rcv_add_addr(struct
  				 u32 addr_flags, bool sllao, bool tokenized,
  				 __u32 valid_lft, u32 prefered_lft)
  {
@@ -157,7 +157,8 @@ diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
 +	struct inet6_ifaddr *ifp = NULL;
  	int create = 0;
  
-+	if ((in6_dev->if_flags & IF_RA_VAR_PLEN) == IF_RA_VAR_PLEN) {
++	if ((in6_dev->if_flags & IF_RA_VAR_PLEN) == IF_RA_VAR_PLEN &&
++	    in6_dev->cnf.addr_gen_mode != IN6_ADDR_GEN_MODE_STABLE_PRIVACY) {
 +		struct inet6_ifaddr *result = NULL;
 +		struct inet6_ifaddr *result_base = NULL;
 +		__int128 mask_128;
@@ -211,7 +212,7 @@ diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
  	if (!ifp && valid_lft) {
  		int max_addresses = in6_dev->cnf.max_addresses;
  		struct ifa6_config cfg = {
-@@ -2780,9 +2871,35 @@ void addrconf_prefix_rcv(struct net_devi
+@@ -2780,9 +2872,35 @@ void addrconf_prefix_rcv(struct net_devi
  				dev_addr_generated = true;
  			}
  			goto ok;
@@ -220,7 +221,7 @@ diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
 +			  pinfo->prefix_len > 0 && pinfo->prefix_len < 128) {
 +			/* SLAAC generation of a variable network prefix length.
 +			 * draft-mishra-6man-variable-slaac-00
-+			 * draft-mishra-6man-variable-slaac-problem-statement-00
++			 * draft-mishra-6man-slaac-with-prefixes-a-problem-statement-00
 +			 * Contact: Dmytro Shytyi.
 +			 */
 +			memcpy(&addr, &pinfo->prefix, 16);
@@ -249,7 +250,7 @@ diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
  		goto put;
  
  ok:
-@@ -3263,6 +3380,119 @@ retry:
+@@ -3263,6 +3381,119 @@ retry:
  	return 0;
  }
  
@@ -370,8 +371,8 @@ diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
  {
  	struct ipv6_stable_secret *s = &idev->cnf.stable_secret;
 diff -ruNp net/net/ipv6/ndisc.c net-patch/net/ipv6/ndisc.c
---- net/net/ipv6/ndisc.c	2020-09-08 15:15:38.069320619 +0200
-+++ net-patch/net/ipv6/ndisc.c	2020-09-08 15:35:55.448637743 +0200
+--- net/net/ipv6/ndisc.c	2020-09-10 16:36:04.092048373 +0200
++++ net-patch/net/ipv6/ndisc.c	2020-09-10 16:36:49.405983500 +0200
 @@ -1244,6 +1244,8 @@ static void ndisc_router_discovery(struc
  		in6_dev->if_flags |= IF_RA_RCVD;
  	}
