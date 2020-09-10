@@ -24,7 +24,7 @@ diff -ruNp net/include/net/if_inet6.h net-patch/include/net/if_inet6.h
  
 +/* SLAAC generation of a varialbe network prefix length
 + * draft-mishra-6man-variable-slaac-00
-+ * draft-mishra-6man-varialbe-slaac-problem-statement-00
++ * draft-mishra-6man-variable-slaac-problem-statement-00
 + */
 +#define IF_RA_VAR_PLEN	0x08
 +
@@ -218,9 +218,9 @@ diff -ruNp net/net/ipv6/addrconf.c net-patch/net/ipv6/addrconf.c
 +		goto put;
 +		} else if (((in6_dev->if_flags & IF_RA_VAR_PLEN) == IF_RA_VAR_PLEN) &&
 +			  pinfo->prefix_len > 0 && pinfo->prefix_len < 128) {
-+			/* SLAAC generation of a varialbe network prefix length.
++			/* SLAAC generation of a variable network prefix length.
 +			 * draft-mishra-6man-variable-slaac-00
-+			 * draft-mishra-6man-varialbe-slaac-problem-statement-00
++			 * draft-mishra-6man-variable-slaac-problem-statement-00
 +			 * Contact: Dmytro Shytyi.
 +			 */
 +			memcpy(&addr, &pinfo->prefix, 16);
