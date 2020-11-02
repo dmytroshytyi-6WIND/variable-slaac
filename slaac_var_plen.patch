@@ -4,14 +4,15 @@ The main problem is that SLAAC RA or PD allocates a /64 by the Wireless
 carrier 4G, 5G to a mobile hotspot, however segmentation of the /64 via
 SLAAC is required so that downstream interfaces can be further subnetted.
 
-Example: uCPE device (4G+WI-FI enabled) receives /64 via Wireless, and
+Example: uCPE device (4G + WI-FI enabled) receives /64 via Wireless, and
 assigns /72 to VNF-Firewall, /72 to WIFI, /72 to VNF-Router, /72 to
 Load-Balance and /72 to wired connected devices.
 
 IETF document that defines problem statement:
-draft-mishra-6man-slaac-with-prefixes-a-problem-statement-00.
+draft-mishra-v6ops-variable-slaac-problem-stmt-01
 IETF document that specifies variable slaac:
-draft-mishra-6man-variable-slaac-00
+draft-mishra-6man-variable-slaac-01
+
 
 Signed-off-by: Dmytro Shytyi <ietf.dmytro@shytyi.net>
 Reviewed-by:
