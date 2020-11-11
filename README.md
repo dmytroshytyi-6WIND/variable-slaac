@@ -10,7 +10,11 @@ draft-mishra-v6ops-variable-slaac-problem-stmt-01
 
 draft-mishra-v6ops-variable-slaac-problem-stmt-00
 
-## Branches
+## Short description on the web site:
+
+https://dmytro.shytyi.net/variable-slaac-ipv6-slaac-with-prefixes-of-arbitrary-length-in-pio/
+
+## Linux kernel development branches
 
 slaac_var_plen_net_next.patch - should be applied to "net-next" branch.
 
@@ -108,3 +112,80 @@ Please check tags/releases.
 
        valid_lft forever preferred_lft forever
 
+
+## TESTING: compilation process did not throw errors during net/ipv6/addrconf.c processing:
+
+### with script downloaded from this link
+
+wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross 
+
+### with the next command execution 
+
+make -j8 for x86_64
+
+COMPILER_INSTALL_PATH=~/0day COMPILER=gcc-10.2.0 ../../bin/make.cross  ARCH=sh  2>&1 | tee build.log
+
+COMPILER_INSTALL_PATH=~/0day COMPILER=gcc-10.2.0 ../../bin/make.cross  ARCH=arm  2>&1 | tee build.log
+
+
+### with these architectures
+
+#### x86_64
+
+[awesome@ferby net-next-patch-v2-5.10.0-rc2]$ make -j16
+
+	
+#### SuperH
+
+[awesome@ferby net-next-patch-v2-5.10.0-rc2]$ compiler_install_path=~/0day compiler=gcc-10.2.0 ../../bin/make.cross  arch=sh  2>&1 | tee build.log
+
+Compiler will be installed in /home/awesome/0day
+
+make W=1 CONFIG_OF_ALL_DTBS=y CONFIG_DTC=y CROSS_COMPILE=/home/awesome/0day/gcc-10.2.0-nolibc/sh4-linux/bin/sh4-linux- --jobs=16 ARCH=sh
+
+make[1]: 'include/generated/machtypes.h' is up to date.
+
+  CALL    scripts/atomic/check-atomics.sh
+
+  CALL    scripts/checksyscalls.sh
+
+...
+
+  CHK     kernel/kheaders_data.tar.xz
+
+  CC [M]  net/ipv6/addrconf.o
+
+  LD [M]  net/ipv6/ipv6.o
+
+...
+
+#### ARM
+
+[awesome@ferby net-next-patch-v2-5.10.0-rc2]$ compiler_install_path=~/0day compiler=gcc-10.2.0 ../../bin/make.cross  arch=arm  2>&1 | tee build.log
+
+Compiler will be installed in /home/awesome/0day 
+
+make W=1 CONFIG_OF_ALL_DTBS=y CONFIG_DTC=y CROSS_COMPILE=/home/awesome/0day/gcc-10.2.0-nolibc/arm-linux-gnueabi/bin/arm-linux-gnueabi- --jobs=16 ARCH=arm 
+ 
+...
+
+  CC [M]  sound/soc/qcom/qdsp6/q6dsp-common.o
+
+  LD [M]  sound/soc/pxa/snd-soc-pxa2xx.o
+
+  CC [M]  sound/soc/qcom/lpass-cpu.o
+
+  CC [M]  net/netfilter/nft_nat.o
+
+  CC [M]  net/ipv6/addrconf.o
+
+  CC [M]  drivers/regulator/wm831x-dcdc.o
+
+  CC [M]  sound/soc/qcom/qdsp6/q6core.o
+
+...
+
+### WARNING:
+	
+Please keep in mind that this implementation requires the int128 support by the equipment.
+If your equipment (ex. SuperH)  doesn't support int128, the compilation of net/ipv6/addrconf.c will be successfull but the feature will not be present.
