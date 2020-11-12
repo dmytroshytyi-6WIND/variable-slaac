@@ -68,7 +68,7 @@ diff -rupN net-next-5.10.0-rc2/include/uapi/linux/icmpv6.h net-next-patch-5.10.0
  #define ICMPV6_ROUTER_PREF_HIGH		0x1
 diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net/ipv6/addrconf.c
 --- net-next-5.10.0-rc2/net/ipv6/addrconf.c	2020-11-10 08:46:01.075193379 +0100
-+++ net-next-patch-5.10.0-rc2/net/ipv6/addrconf.c	2020-11-11 19:47:08.529992394 +0100
++++ net-next-patch-5.10.0-rc2/net/ipv6/addrconf.c	2020-11-12 16:27:26.765361712 +0100
 @@ -11,6 +11,8 @@
  /*
   *	Changes:
@@ -115,8 +115,8 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +
  
 +	memset(&mask_128, 0xFF, 16);
-+	write_lock_bh(&idev->lock);
 +#endif
++	write_lock_bh(&idev->lock);
 +	ret = 0;
  retry:
  	in6_dev_hold(idev);
@@ -161,7 +161,7 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
  	if (ifp->flags & IFA_F_OPTIMISTIC)
  		cfg.ifa_flags |= IFA_F_OPTIMISTIC;
 -
-+
++        
 +	if (in6_pton("::", -1, addr.s6_addr, -1, NULL)) {
 +		ret = -1;
 +		goto out;
