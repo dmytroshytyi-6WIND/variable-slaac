@@ -2,7 +2,7 @@
 
 ## Release v2.X.X vs v1.X
 
-Releases v1.X is relying on int128 variables.
+Releases v1.X are relying on int128 variables.
 
 Releases v2.X.X rewritten and are not relying on int128 variables.
 
