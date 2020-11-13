@@ -1,4 +1,4 @@
-# variable SLAAC v2.X.X implementation (not relying on int128)
+# variable SLAAC v2.X.X implementation in linux kernel
 
 ## Release v2.X.X vs v1.X
 
