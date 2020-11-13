@@ -12,7 +12,6 @@ IETF document that specifies variable slaac:
 draft-mishra-6man-variable-slaac
 
 Signed-off-by: Dmytro Shytyi <dmytro@shytyi.net>
-Reported-by: kernel test robot <lkp@intel.com>
 ---
 diff -rupN net-next-5.10.0-rc2/include/net/if_inet6.h net-next-patch-5.10.0-rc2/include/net/if_inet6.h
 --- net-next-5.10.0-rc2/include/net/if_inet6.h	2020-11-10 08:46:00.195180579 +0100
@@ -68,7 +67,7 @@ diff -rupN net-next-5.10.0-rc2/include/uapi/linux/icmpv6.h net-next-patch-5.10.0
  #define ICMPV6_ROUTER_PREF_HIGH		0x1
 diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net/ipv6/addrconf.c
 --- net-next-5.10.0-rc2/net/ipv6/addrconf.c	2020-11-10 08:46:01.075193379 +0100
-+++ net-next-patch-5.10.0-rc2/net/ipv6/addrconf.c	2020-11-12 16:27:26.765361712 +0100
++++ net-next-patch-5.10.0-rc2/net/ipv6/addrconf.c	2020-11-13 02:30:25.552724864 +0100
 @@ -11,6 +11,8 @@
  /*
   *	Changes:
@@ -88,40 +87,28 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +					       const struct inet6_dev *idev,
 +					       unsigned int rcvd_prfx_len,
 +					       bool stable_privacy_mode);
-+unsigned char reverse_bits(unsigned char num);
++static void ipv6_plen_to_mask(int plen, struct in6_addr *net_mask);
  #define IN6_ADDR_HSIZE_SHIFT	8
  #define IN6_ADDR_HSIZE		(1 << IN6_ADDR_HSIZE_SHIFT)
  /*
-@@ -1314,11 +1321,26 @@ static int ipv6_create_tempaddr(struct i
- 	struct inet6_ifaddr *ift;
+@@ -1315,10 +1322,14 @@ static int ipv6_create_tempaddr(struct i
  	struct ifa6_config cfg;
  	long max_desync_factor;
-+
  	struct in6_addr addr;
 -	int ret = 0;
- 
--	write_lock_bh(&idev->lock);
 +	int ret;
-+#if defined(CONFIG_ARCH_SUPPORTS_INT128)
-+	__int128 host_id;
-+	__int128 net_prfx;
-+	__int128 ipv6addr;
-+	__int128 mask_128;
-+	__int128 mask_host_id;
-+	__int128 mask_net_prfx;
++	struct in6_addr net_mask;
 +	struct in6_addr temp;
++	struct in6_addr ipv6addr;
 +	int i;
-+	unsigned char mask_host_id_arr[128];
-+
  
-+	memset(&mask_128, 0xFF, 16);
-+#endif
-+	write_lock_bh(&idev->lock);
+ 	write_lock_bh(&idev->lock);
+-
 +	ret = 0;
  retry:
  	in6_dev_hold(idev);
  	if (idev->cnf.use_tempaddr <= 0) {
-@@ -1340,9 +1362,32 @@ retry:
+@@ -1340,9 +1351,26 @@ retry:
  		goto out;
  	}
  	in6_ifa_hold(ifp);
@@ -132,44 +119,25 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +		memcpy(addr.s6_addr, ifp->addr.s6_addr, 8);
 +		ipv6_gen_rnd_iid(&addr);
 +	} else if (ifp->prefix_len > 0 && ifp->prefix_len <= 128) {
-+#if defined(CONFIG_ARCH_SUPPORTS_INT128)
-+		memcpy(addr.s6_addr, ifp->addr.s6_addr, 16);
++		memcpy(addr.s6_addr32, ifp->addr.s6_addr, 16);
 +		get_random_bytes(temp.s6_addr32, 16);
 +
-+		memcpy(&host_id, temp.s6_addr32, sizeof(host_id));
-+		memcpy(&net_prfx, addr.s6_addr, sizeof(net_prfx));
++		/* tranfrom prefix len into mask */
++		ipv6_plen_to_mask(ifp->prefix_len, &net_mask);
 +
-+		mask_host_id = ifp->prefix_len != 128 ? (mask_128 << ifp->prefix_len) : 0x0;
-+		memcpy(mask_host_id_arr, &mask_host_id, 16);
-+		for (i = 0; i < 128; i++)
-+			mask_host_id_arr[i] = reverse_bits(mask_host_id_arr[i]);
-+		memcpy(&mask_host_id, mask_host_id_arr, 16);
-+		host_id = host_id & mask_host_id;
++		for (i = 0; i < 4; i++) {
++			/* network prefix */
++			ipv6addr.s6_addr32[i] = addr.s6_addr32[i] & net_mask.s6_addr32[i];
++			/* host id */
++			ipv6addr.s6_addr32[i] |= temp.s6_addr32[i] & ~net_mask.s6_addr32[i];
++		}
 +
-+		mask_net_prfx = mask_128 ^ mask_host_id;
-+		net_prfx = net_prfx & mask_net_prfx;
-+
-+		ipv6addr = net_prfx | host_id;
-+		memcpy(addr.s6_addr, &ipv6addr, 16);
-+#endif
++		memcpy(addr.s6_addr, ipv6addr.s6_addr32, 16);
 +	}
  	age = (now - ifp->tstamp) / HZ;
  
  	regen_advance = idev->cnf.regen_max_retry *
-@@ -1398,7 +1443,11 @@ retry:
- 	/* set in addrconf_prefix_rcv() */
- 	if (ifp->flags & IFA_F_OPTIMISTIC)
- 		cfg.ifa_flags |= IFA_F_OPTIMISTIC;
--
-+        
-+	if (in6_pton("::", -1, addr.s6_addr, -1, NULL)) {
-+		ret = -1;
-+		goto out;
-+	}
- 	cfg.pfx = &addr;
- 	cfg.scope = ipv6_addr_scope(cfg.pfx);
- 
-@@ -2576,9 +2625,64 @@ int addrconf_prefix_rcv_add_addr(struct
+@@ -2576,9 +2604,57 @@ int addrconf_prefix_rcv_add_addr(struct
  				 u32 addr_flags, bool sllao, bool tokenized,
  				 __u32 valid_lft, u32 prefered_lft)
  {
@@ -179,44 +147,38 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
  
 +	if ((in6_dev->if_flags & IF_RA_VAR_PLEN) == IF_RA_VAR_PLEN &&
 +	    in6_dev->cnf.addr_gen_mode != IN6_ADDR_GEN_MODE_STABLE_PRIVACY) {
-+#if defined(CONFIG_ARCH_SUPPORTS_INT128)
 +		struct inet6_ifaddr *result = NULL;
 +		struct inet6_ifaddr *result_base = NULL;
-+		__int128 mask_128;
-+		__int128 mask_net_prfx;
-+		__int128 net_prfx;
-+		__int128 curr_net_prfx;
-+		int hostid_len;
++		struct in6_addr net_mask;
++		struct in6_addr net_prfx;
++		struct in6_addr curr_net_prfx;
++		bool prfxs_equal;
 +		int i;
-+		unsigned char mask_host_id_arr[128];
 +
-+		memset(&mask_128, 0xFF, 16);
 +		result_base = result;
 +		rcu_read_lock();
 +		list_for_each_entry_rcu(ifp, &in6_dev->addr_list, if_list) {
 +			if (!net_eq(dev_net(ifp->idev->dev), net))
 +				continue;
-+			/* 128bit network prefix mask calculation */
-+			hostid_len = 128 - pinfo->prefix_len;
-+			mask_net_prfx =
-+				pinfo->prefix_len != 128 ? (mask_128 << pinfo->prefix_len) : 0x0;
-+			mask_net_prfx = ~mask_net_prfx;
-+			memcpy(mask_host_id_arr, &mask_net_prfx, 16);
-+			for (i = 0; i < 128; i++)
-+				mask_host_id_arr[i] = reverse_bits(mask_host_id_arr[i]);
-+			memcpy(&mask_net_prfx, mask_host_id_arr, 16);
 +
-+			/* Received/new IPv6 prefix */
-+			memcpy(&net_prfx, pinfo->prefix.s6_addr32, 16);
-+			net_prfx &= mask_net_prfx;
-+
-+			/* Configured/old IPv6 prefix */
-+			memcpy(&curr_net_prfx, ifp->addr.s6_addr32, 16);
-+			curr_net_prfx &=  mask_net_prfx;
-+
-+			/* IPv6 prefixes comparison */
-+			if ((net_prfx ^ curr_net_prfx) == 0 &&
-+			    pinfo->prefix_len == ifp->prefix_len) {
++			/* tranfrom prefix len into mask */
++			ipv6_plen_to_mask(pinfo->prefix_len, &net_mask);
++			/* Prepare network prefixes */
++			for (i = 0; i < 4; i++) {
++				/* Received/new network prefix */
++				net_prfx.s6_addr32[i] =
++					pinfo->prefix.s6_addr32[i] & net_mask.s6_addr32[i];
++				/* Configured/old IPv6 prefix */
++				curr_net_prfx.s6_addr32[i] =
++					ifp->addr.s6_addr32[i] & net_mask.s6_addr32[i];
++			}
++			/* Compare network prefixes */
++			prfxs_equal = 1;
++			for (i = 0; i < 4; i++) {
++				if ((net_prfx.s6_addr32[i] ^ curr_net_prfx.s6_addr32[i]) != 0)
++					prfxs_equal = 0;
++			}
++			if (prfxs_equal && pinfo->prefix_len == ifp->prefix_len) {
 +				result = ifp;
 +				in6_ifa_hold(ifp);
 +				break;
@@ -227,7 +189,6 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +			ifp = result;
 +		else
 +			ifp = NULL;
-+#endif
 +	} else {
 +		ifp = ipv6_get_ifaddr(net, addr, dev, 1);
 +	}
@@ -235,7 +196,7 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
  	if (!ifp && valid_lft) {
  		int max_addresses = in6_dev->cnf.max_addresses;
  		struct ifa6_config cfg = {
-@@ -2781,9 +2885,35 @@ void addrconf_prefix_rcv(struct net_devi
+@@ -2781,9 +2857,35 @@ void addrconf_prefix_rcv(struct net_devi
  				dev_addr_generated = true;
  			}
  			goto ok;
@@ -273,24 +234,37 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
  		goto put;
  
  ok:
-@@ -3264,6 +3394,120 @@ retry:
+@@ -3264,6 +3366,118 @@ retry:
  	return 0;
  }
  
-+unsigned char reverse_bits(unsigned char num)
++static void ipv6_plen_to_mask(int plen, struct in6_addr *net_mask)
 +{
-+	unsigned char count = sizeof(num) * 8 - 1;
-+	unsigned char reverse_num = num;
++	int i, plen_bytes;
++	char bit_array[7] = {0b10000000,
++			     0b11000000,
++			     0b11100000,
++			     0b11110000,
++			     0b11111000,
++			     0b11111100,
++			     0b11111110};
 +
-+	num >>= 1;
-+	while (num) {
-+		reverse_num <<= 1;
-+		reverse_num |= num & 1;
-+		num >>= 1;
-+		count--;
-+	}
-+	reverse_num <<= count;
-+	return reverse_num;
++	if (plen <= 0 || plen > 128)
++		pr_err("Unexpected plen: %d", plen);
++
++	memset(net_mask, 0x00, sizeof(*net_mask));
++
++	/* We set all bits == 1 of s6_addr[i] */
++	plen_bytes = plen / 8;
++	for (i = 0; i < plen_bytes; i++)
++		net_mask->s6_addr[i] = 0xff;
++
++	/* We add bits from the bit_array to
++	 * netmask starting from plen_bytes position
++	 */
++	if (plen % 8)
++		net_mask->s6_addr[plen_bytes] = bit_array[(plen % 8) - 1];
++	memcpy(net_mask->s6_addr32, net_mask->s6_addr, 16);
 +}
 +
 +static int ipv6_generate_address_variable_plen(struct in6_addr *address,
@@ -299,7 +273,6 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +					       unsigned int rcvd_prfx_len,
 +					       bool stable_privacy_mode)
 +{
-+#if defined(CONFIG_ARCH_SUPPORTS_INT128)
 +	static DEFINE_SPINLOCK(lock);
 +	static __u32 digest[SHA1_DIGEST_WORDS];
 +	static __u32 workspace[SHA1_WORKSPACE_WORDS];
@@ -314,19 +287,13 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +		} __packed;
 +	} data;
 +
++	struct in6_addr ipv6_temp_addr;
++	struct in6_addr net_mask;
 +	struct in6_addr secret;
 +	struct in6_addr temp;
 +	struct net *net = dev_net(idev->dev);
-+	__int128 host_id;
-+	__int128 net_prfx;
-+	__int128 ipv6addr;
-+	__int128 mask_128;
-+	__int128 mask_host_id;
-+	__int128 mask_net_prfx;
 +	int i;
-+	unsigned char mask_host_id_arr[128];
 +
-+	memset(&mask_128, 0xFF, 16);
 +	BUILD_BUG_ON(sizeof(data.__data) != sizeof(data));
 +
 +	if (stable_privacy_mode) {
@@ -370,24 +337,16 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +		goto retry;
 +	}
 +
-+	memcpy(&host_id, temp.s6_addr32, 16);
-+	memcpy(&net_prfx, address->s6_addr32, 16);
++	/* convert plen to mask */
++	ipv6_plen_to_mask(rcvd_prfx_len, &net_mask);
++	for (i = 0; i < 4; i++) {
++		/* network prefix */
++		ipv6_temp_addr.s6_addr32[i] = address->s6_addr32[i] & net_mask.s6_addr32[i];
++		/* host id */
++		ipv6_temp_addr.s6_addr32[i] |= temp.s6_addr32[i] & ~net_mask.s6_addr32[i];
++	}
 +
-+	mask_host_id = rcvd_prfx_len != 128 ? (mask_128 << rcvd_prfx_len) : 0x0;
-+	memcpy(mask_host_id_arr, &mask_host_id, 16);
-+	for (i = 0; i < 128; i++)
-+		mask_host_id_arr[i] = reverse_bits(mask_host_id_arr[i]);
-+	memcpy(&mask_host_id, mask_host_id_arr, 16);
-+	host_id = host_id & mask_host_id;
-+
-+	mask_net_prfx = mask_128 ^ mask_host_id;
-+	net_prfx = net_prfx & mask_net_prfx;
-+
-+	ipv6addr = net_prfx | host_id;
-+	memcpy(temp.s6_addr32, &ipv6addr, 16);
-+
-+	*address = temp;
-+#endif
++	*address = ipv6_temp_addr;
 +	return 0;
 +}
 +

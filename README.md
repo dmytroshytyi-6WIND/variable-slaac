@@ -1,4 +1,11 @@
-# variable SLAAC 
+# variable SLAAC v2.X.X implementation (not relying on int128)
+
+## Release v2.X.X vs v1.X
+
+Releases v1.X is relying on int128 variables.
+
+Releases v2.X.X rewritten and are not relying on int128 variables.
+
 ## IETF documents: 
 
 draft-mishra-6man-variable-slaac-01
@@ -44,26 +51,24 @@ Please check tags/releases.
 2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
 
     link/ether 08:00:27:59:e7:17 brd ff:ff:ff:ff:ff:ff
+```
+  inet6 2001:fa9e:c193:ae49:6285:be18:21c3:b437/16 scope global dynamic mngtmpaddr 
+       valid_lft 86200sec preferred_lft 14200sec
+    inet6 2000:2f97:42e2:109a:b8db:4c95:e081:4b/12 scope global dynamic mngtmpaddr 
+       valid_lft 86114sec preferred_lft 14114sec
+    inet6 2001:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128 scope global dynamic mngtmpaddr 
+       valid_lft 86081sec preferred_lft 14081sec
+    inet6 2001:ffff:ffff:ffff:ffff:ffff:ffff:fffe/127 scope global dynamic mngtmpaddr 
+       valid_lft 86045sec preferred_lft 14045sec
+    inet6 2001:ffff:ffff:ffc8:c7f6:3531:38dc:7304/57 scope global dynamic mngtmpaddr 
+       valid_lft 86008sec preferred_lft 14008sec
+    inet6 2001:ffff:ffff:ffff:ffff:ffff:fffe:3bbe/111 scope global dynamic mngtmpaddr 
+       valid_lft 85957sec preferred_lft 13957sec
+    inet6 2001:ffff:ffff:ffff:ffff:ffff:ffff:e2be/112 scope global dynamic mngtmpaddr 
+       valid_lft 85930sec preferred_lft 13930sec
+```
 
-    inet6 2001:ffff:ffff:ff36:a542:5743:57f0:2919/56 scope global dynamic mngtmpaddr 
 
-       valid_lft 86385sec preferred_lft 14385sec
-
-    inet6 2001:ffff:ffff:ffff:ff5b:df35:35e1:f932/72 scope global dynamic mngtmpaddr 
-
-       valid_lft 86357sec preferred_lft 14357sec
-
-    inet6 2001:ffff:ffff:ffff:ffff:ffff:ffff:fed0/119 scope global dynamic mngtmpaddr 
-
-       valid_lft 86320sec preferred_lft 14320sec
-
-    inet6 2001:ffff:ffff:ffff:ffff:ffff:ffff:311f/111 scope global dynamic mngtmpaddr 
-
-       valid_lft 86258sec preferred_lft 14258sec
-
-    inet6 fe80::a00:27ff:fe59:e717/64 scope link 
-
-       valid_lft forever preferred_lft forever
 
 
 ### Stable privacy + privacy extensions
@@ -82,15 +87,15 @@ Please check tags/releases.
 
     link/ether 08:00:27:59:e7:17 brd ff:ff:ff:ff:ff:ff
 
-    inet6 2001:ffff:ffff:ffeb:6c11:2e0:37e1:3b45/56 scope global temporary dynamic 
+    inet6 2001:ffff:fffe:8d2c:df24:d0db:f0ec:3f28/47 scope global temporary dynamic 
 
-       valid_lft 86395sec preferred_lft 14395sec
+       valid_lft 85677sec preferred_lft 13677sec
 
-    inet6 2001:ffff:ffff:ff3a:c9bc:601b:dba0:12f1/56 scope global dynamic mngtmpaddr stable-privacy 
+    inet6 2001:ffff:fffe:a23:889d:d522:fad9:5e5/47 scope global dynamic mngtmpaddr stable-privacy 
 
-       valid_lft 86395sec preferred_lft 14395sec
+       valid_lft 85677sec preferred_lft 13677sec
 
-    inet6 fe80::2b2b:e2ce:d353:2d38/64 scope link stable-privacy 
+    inet6 fe80::4428:b0ca:1844:6247/64 scope link stable-privacy 
 
        valid_lft forever preferred_lft forever
 
