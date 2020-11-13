@@ -48,10 +48,9 @@ Please check tags/releases.
 
 ### Default behaviour /bin/bash ip a sh
 
-2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
-
-    link/ether 08:00:27:59:e7:17 brd ff:ff:ff:ff:ff:ff
 ```
+2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:59:e7:17 brd ff:ff:ff:ff:ff:ff
   inet6 2001:fa9e:c193:ae49:6285:be18:21c3:b437/16 scope global dynamic mngtmpaddr 
        valid_lft 86200sec preferred_lft 14200sec
     inet6 2000:2f97:42e2:109a:b8db:4c95:e081:4b/12 scope global dynamic mngtmpaddr 
@@ -75,48 +74,38 @@ Please check tags/releases.
 
 #### Config
 
+```
 [awesome@ferby ~]$ sudo sysctl net.ipv6.conf.enp0s3.use_tempaddr=2
 
 [awesome@ferby ~]$ sudo sysctl net.ipv6.conf.enp0s3.addr_gen_mode=3
 
 [awesome@ferby ~]$ sudo sysctl net.ipv6.conf.enp0s3.addr_gen_mode=2
+```
 
 #### /bin/bash ip a sh
 
+```
 2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
-
     link/ether 08:00:27:59:e7:17 brd ff:ff:ff:ff:ff:ff
-
     inet6 2001:ffff:fffe:8d2c:df24:d0db:f0ec:3f28/47 scope global temporary dynamic 
-
        valid_lft 85677sec preferred_lft 13677sec
-
     inet6 2001:ffff:fffe:a23:889d:d522:fad9:5e5/47 scope global dynamic mngtmpaddr stable-privacy 
-
        valid_lft 85677sec preferred_lft 13677sec
-
     inet6 fe80::4428:b0ca:1844:6247/64 scope link stable-privacy 
-
        valid_lft forever preferred_lft forever
-
-
+```
 
 2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
 
+```
     link/ether 08:00:27:59:e7:17 brd ff:ff:ff:ff:ff:ff
-
     inet6 2001:ffff:ffff:ffff:fff2:cf59:8f4c:9ac1/72 scope global temporary dynamic 
-
        valid_lft 86381sec preferred_lft 14381sec
-
     inet6 2001:ffff:ffff:ffff:ffbc:601b:dba0:12f1/72 scope global dynamic mngtmpaddr stable-privacy 
-
        valid_lft 86381sec preferred_lft 14381sec
-
     inet6 fe80::2b2b:e2ce:d353:2d38/64 scope link stable-privacy 
-
        valid_lft forever preferred_lft forever
-
+```
 
 ## TESTING: compilation process did not throw errors during net/ipv6/addrconf.c processing:
 
@@ -142,55 +131,33 @@ COMPILER_INSTALL_PATH=~/0day COMPILER=gcc-10.2.0 ../../bin/make.cross  ARCH=arm 
 	
 #### SuperH
 
+```
 [awesome@ferby net-next-patch-v2-5.10.0-rc2]$ compiler_install_path=~/0day compiler=gcc-10.2.0 ../../bin/make.cross  arch=sh  2>&1 | tee build.log
-
 Compiler will be installed in /home/awesome/0day
-
 make W=1 CONFIG_OF_ALL_DTBS=y CONFIG_DTC=y CROSS_COMPILE=/home/awesome/0day/gcc-10.2.0-nolibc/sh4-linux/bin/sh4-linux- --jobs=16 ARCH=sh
-
 make[1]: 'include/generated/machtypes.h' is up to date.
-
   CALL    scripts/atomic/check-atomics.sh
-
   CALL    scripts/checksyscalls.sh
-
 ...
-
   CHK     kernel/kheaders_data.tar.xz
-
   CC [M]  net/ipv6/addrconf.o
-
   LD [M]  net/ipv6/ipv6.o
-
 ...
+```
 
 #### ARM
 
+```
 [awesome@ferby net-next-patch-v2-5.10.0-rc2]$ compiler_install_path=~/0day compiler=gcc-10.2.0 ../../bin/make.cross  arch=arm  2>&1 | tee build.log
-
 Compiler will be installed in /home/awesome/0day 
-
 make W=1 CONFIG_OF_ALL_DTBS=y CONFIG_DTC=y CROSS_COMPILE=/home/awesome/0day/gcc-10.2.0-nolibc/arm-linux-gnueabi/bin/arm-linux-gnueabi- --jobs=16 ARCH=arm 
- 
 ...
-
   CC [M]  sound/soc/qcom/qdsp6/q6dsp-common.o
-
   LD [M]  sound/soc/pxa/snd-soc-pxa2xx.o
-
   CC [M]  sound/soc/qcom/lpass-cpu.o
-
   CC [M]  net/netfilter/nft_nat.o
-
   CC [M]  net/ipv6/addrconf.o
-
   CC [M]  drivers/regulator/wm831x-dcdc.o
-
   CC [M]  sound/soc/qcom/qdsp6/q6core.o
-
 ...
-
-### WARNING:
-	
-Please keep in mind that this implementation requires the int128 support by the equipment.
-If your equipment (ex. SuperH)  doesn't support int128, the compilation of net/ipv6/addrconf.c will be successfull but the feature will not be present.
+```
