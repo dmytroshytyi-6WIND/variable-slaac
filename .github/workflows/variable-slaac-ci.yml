@@ -24,6 +24,8 @@ jobs:
       run: cp ./.config ./net-next
     - name: apply patch
       run: patch -d ./net-next -p1 < ./variable-slaac/slaac_var_plen_net_next.patch
+    - name: install libelf-dev
+      run: apt install -y libelf-dev
     - name: make defconfig
       run: make --directory ./net-next defconfig
     - name: run make
