@@ -55,7 +55,7 @@ setup_variables() {
             tree=linux
             ;;
     esac
-    [[ -z "${url:-}" ]] && url=git://git.kernel.org/pub/scm/linux/kernel/git/${owner}/${tree}.git
+    [[ -z "${url:-}" ]] && url=git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 
     SUBARCH=${ARCH}
     case ${SUBARCH} in
