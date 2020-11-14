@@ -22,7 +22,9 @@ jobs:
       run: git clone git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
     - name: cp config
       run: cp ./.config ./net-next
+    - name: chdir
+      run: cd net-next
     - name: apply patch
-      run: patch --directory ./net-next/ p1 < ../variable-slaac/slaac_var_plen_net_next.patch
+      run: patch p1 < ../variable-slaac/slaac_var_plen_net_next.patch
     - name: make defconfig
       run: make -j64
