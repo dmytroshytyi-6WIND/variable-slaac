@@ -209,13 +209,13 @@ script:
         --rm \
         --workdir /travis \
         --volume ${TRAVIS_BUILD_DIR}:/travis \
-        dmytroshytyi/variable-slaacc/ubuntu:llvm${LLVM_VERSION:-12}-latest /bin/bash -c './env-setup.sh && ./driver.sh && ccache -s'
+        dmytroshytyi/variable-slaac/ubuntu:llvm${LLVM_VERSION:-12}-latest /bin/bash -c './env-setup.sh && ./driver.sh && ccache -s'
 after_script:
   - sleep 1
 notifications:
   email:
     recipients:
-      - ietf.dmytro@shytyi.net 
+      - ietf.dmytro@shytyi.net
     on_success: never
     on_failure: always
     if: type = cron
