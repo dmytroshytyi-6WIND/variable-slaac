@@ -374,15 +374,15 @@ mako_reactor() {
     fi
 }
 
-apply_patches() {
-    patches_folder=$1
-    if [[ -d ${patches_folder} ]]; then
-        git apply -v -3 "${patches_folder}"/*.patch
-    else
-        return 0
-    fi
-}
-
+#apply_patches() {
+#    patches_folder=$1
+#    if [[ -d ${patches_folder} ]]; then
+#        git apply -v -3 "${patches_folder}"/*.patch
+#    else
+#        return 0
+#    fi
+#}
+#
 build_linux() {
     # Wrap CC in ccache if it is available (it's not strictly required)
     CC="$(command -v ccache) ${CC}"
@@ -399,14 +399,15 @@ build_linux() {
 
     git show -s | cat
 
-    llvm_all_folder="../patches/llvm-all"
-    apply_patches "${llvm_all_folder}/kernel-all"
-    apply_patches "${llvm_all_folder}/${REPO}/arch-all"
-    apply_patches "${llvm_all_folder}/${REPO}/${SUBARCH}"
-    llvm_version_folder="../patches/llvm-$(echo __clang_major__ | ${CC} -E -x c - | tail -n 1)"
-    apply_patches "${llvm_version_folder}/kernel-all"
-    apply_patches "${llvm_version_folder}/${REPO}/arch-all"
-    apply_patches "${llvm_version_folder}/${REPO}/${SUBARCH}"
+     git apply -v -3 "../"/slaac_var_plen_net_next.patch
+#    llvm_all_folder="../patches/llvm-all"
+#    apply_patches "${llvm_all_folder}/kernel-all"
+#    apply_patches "${llvm_all_folder}/${REPO}/arch-all"
+#    apply_patches "${llvm_all_folder}/${REPO}/${SUBARCH}"
+#    llvm_version_folder="../patches/llvm-$(echo __clang_major__ | ${CC} -E -x c - | tail -n 1)"
+#    apply_patches "${llvm_version_folder}/kernel-all"
+#    apply_patches "${llvm_version_folder}/${REPO}/arch-all"
+#    apply_patches "${llvm_version_folder}/${REPO}/${SUBARCH}"
 
     # Only clean up old artifacts if requested, the Linux build system
     # is good about figuring out what needs to be rebuilt
