@@ -14,8 +14,8 @@ jobs:
     steps:
     - name: all
       uses: actions/checkout@v2
-    - name: install libelf-dev
-      run: sudo apt install -y libelf-dev
+    - name: install buildutils
+      run: sudo apt-get install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev
     - name: git-get-slaac
       run: git clone https://github.com/dmytroshytyi/variable-slaac.git
     - name: get-config
