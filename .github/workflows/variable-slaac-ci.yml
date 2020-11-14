@@ -25,6 +25,6 @@ jobs:
     - name: chdir
       run: cd net-next
     - name: apply patch
-      run: patch p1 < ../variable-slaac/slaac_var_plen_net_next.patch
+      run: patch -p1 < ../variable-slaac/slaac_var_plen_net_next.patch
     - name: make defconfig
       run: make -j64
