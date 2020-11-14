@@ -1,4 +1,5 @@
 # variable SLAAC v2.X.X implementation in linux kernel
+[![Build Status](https://travis-ci.com/ClangBuiltLinux/continuous-integration.svg?branch=master)](https://travis-ci.com/ClangBuiltLinux/continuous-integration)
 
 ## Release v2.X.X vs v1.X
 
