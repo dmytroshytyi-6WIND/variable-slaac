@@ -30,7 +30,7 @@ jobs:
       env: ARCH=x86_64 LLVM=1 LLVM_IAS=1
     # linux (cron only)
     #
-    dmytroshytyi/variable-slaac# net-next (cron only)
+    # net-next (cron only)
     - name: "ARCH=arm32_v5 LLVM=1 LLVM_IAS=1 REPO=net-next"
       env: ARCH=arm32_v5 LLVM=1 LLVM_IAS=1 REPO=net-next
       if: type = cron
