@@ -31,7 +31,7 @@ setup_variables() {
     set -x
 
     # torvalds/linux is the default repo if nothing is specified
-    case ${REPO:=linux} in
+    case ${REPO:=net-next} in
         "android"*)
             tree=common
             branch=${REPO}
