@@ -24,4 +24,4 @@ jobs:
     - name: apply patch
     - run: patch --directory ./net-next/ p1 < ../variable-slaac/slaac_var_plen_net_next.patch
     - name: make defconfig
-      run: make -j64
+    - run: make -j64
