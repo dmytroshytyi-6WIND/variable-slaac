@@ -23,7 +23,7 @@ jobs:
     - name: cp config
       run: cp ./.config ./net-next
     - name: chdir
-      run: cd net-next
+      run: cd ./net-next
     - name: apply patch
       run: patch -p1 < ../variable-slaac/slaac_var_plen_net_next.patch
     - name: make defconfig
