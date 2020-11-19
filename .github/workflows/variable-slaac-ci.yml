@@ -1,0 +1,32 @@
+name: Variable SLAAC CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: all
+      uses: actions/checkout@v2
+    - name: install buildutils
+      run: sudo apt-get install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev
+    - name: git-get-slaac
+      run: git clone https://github.com/dmytroshytyi/variable-slaac.git
+    - name: get-config
+      run: wget https://raw.githubusercontent.com/dmytroshytyi/variable-slaac/master/configs/common.config -O .config
+    - name: git get net-next
+      run: git clone git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
+    - name: cp config
+      run: cp ./.config ./net-next
+    - name: apply patch
+      run: patch -d ./net-next -p1 < ./variable-slaac/slaac_var_plen_net_next.patch
+    - name: make defconfig
+      run: make --directory ./net-next defconfig
+    - name: run make
+      run: make --directory ./net-next -j64

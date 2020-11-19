@@ -1,4 +1,9 @@
-# variable SLAAC v2.X.X implementation in linux kernel [![Build Status](https://travis-ci.com/dmytroshytyi/variable-slaac.svg?branch=master)](https://travis-ci.com/dmytroshytyi/variable-slaac) [![Gitter](https://badges.gitter.im/dmytroshytyi/variable-slaac-linux-implementation.svg)](https://gitter.im/dmytroshytyi/variable-slaac-linux-implementation?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+# variable SLAAC v2.X.X implementation in linux kernel 
+
+[![Build Status](https://travis-ci.com/dmytroshytyi/variable-slaac.svg?branch=master)](https://travis-ci.com/dmytroshytyi/variable-slaac) 
+[![Gitter](https://badges.gitter.im/dmytroshytyi/variable-slaac-linux-implementation.svg)](https://gitter.im/dmytroshytyi/variable-slaac-linux-implementation?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fdmytroshytyi%2Fvariable-slaac&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
+
 ## Release v2.X.X vs v1.X
 
 Releases v1.X are relying on int128 variables.
