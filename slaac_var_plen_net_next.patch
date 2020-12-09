@@ -13,26 +13,53 @@ draft-mishra-6man-variable-slaac
 
 Signed-off-by: Dmytro Shytyi <dmytro@shytyi.net>
 ---
-diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net/ipv6/addrconf.c
---- net-next-5.10.0-rc2/net/ipv6/addrconf.c	2020-11-10 08:46:01.075193379 +0100
-+++ net-next-patch-5.10.0-rc2/net/ipv6/addrconf.c	2020-11-19 12:27:58.252392820 +0100
-@@ -142,7 +142,6 @@ static int ipv6_count_addresses(const st
- static int ipv6_generate_stable_address(struct in6_addr *addr,
- 					u8 dad_count,
- 					const struct inet6_dev *idev);
--
- #define IN6_ADDR_HSIZE_SHIFT	8
- #define IN6_ADDR_HSIZE		(1 << IN6_ADDR_HSIZE_SHIFT)
- /*
-@@ -1315,6 +1314,7 @@ static int ipv6_create_tempaddr(struct i
- 	struct ifa6_config cfg;
- 	long max_desync_factor;
- 	struct in6_addr addr;
-+	struct in6_addr temp;
- 	int ret = 0;
+diff --git a/include/linux/ipv6.h b/include/linux/ipv6.h
+index dda61d150a13..67ca3925463c 100644
+--- a/include/linux/ipv6.h
++++ b/include/linux/ipv6.h
+@@ -75,6 +75,7 @@ struct ipv6_devconf {
+ 	__s32		disable_policy;
+ 	__s32           ndisc_tclass;
+ 	__s32		rpl_seg_enabled;
++	__s32		variable_slaac;
  
- 	write_lock_bh(&idev->lock);
-@@ -1340,9 +1340,16 @@ retry:
+ 	struct ctl_table_header *sysctl_header;
+ };
+diff --git a/include/uapi/linux/ipv6.h b/include/uapi/linux/ipv6.h
+index 13e8751bf24a..f2af4f9fba2d 100644
+--- a/include/uapi/linux/ipv6.h
++++ b/include/uapi/linux/ipv6.h
+@@ -189,7 +189,8 @@ enum {
+ 	DEVCONF_ACCEPT_RA_RT_INFO_MIN_PLEN,
+ 	DEVCONF_NDISC_TCLASS,
+ 	DEVCONF_RPL_SEG_ENABLED,
+-	DEVCONF_MAX
++	DEVCONF_MAX,
++	DEVCONF_VARIABLE_SLAAC
+ };
+ 
+ 
+diff --git a/net/ipv6/addrconf.c b/net/ipv6/addrconf.c
+index eff2cacd5209..07afe4ce984e 100644
+--- a/net/ipv6/addrconf.c
++++ b/net/ipv6/addrconf.c
+@@ -236,6 +236,7 @@ static struct ipv6_devconf ipv6_devconf __read_mostly = {
+ 	.addr_gen_mode		= IN6_ADDR_GEN_MODE_EUI64,
+ 	.disable_policy		= 0,
+ 	.rpl_seg_enabled	= 0,
++	.variable_slaac		= 0,
+ };
+ 
+ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
+@@ -291,6 +292,7 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
+ 	.addr_gen_mode		= IN6_ADDR_GEN_MODE_EUI64,
+ 	.disable_policy		= 0,
+ 	.rpl_seg_enabled	= 0,
++	.variable_slaac		= 0,
+ };
+ 
+ /* Check if link is ready: is it up and is a valid qdisc available */
+@@ -1340,9 +1342,15 @@ static int ipv6_create_tempaddr(struct inet6_ifaddr *ifp, bool block)
  		goto out;
  	}
  	in6_ifa_hold(ifp);
@@ -42,28 +69,25 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +	if (ifp->prefix_len == 64) {
 +		memcpy(addr.s6_addr, ifp->addr.s6_addr, 8);
 +		ipv6_gen_rnd_iid(&addr);
-+	} else if (ifp->prefix_len > 0 && ifp->prefix_len <= 128) {
-+		memcpy(addr.s6_addr32, ifp->addr.s6_addr, 16);
-+		get_random_bytes(temp.s6_addr32, 16);
-+		ipv6_addr_prefix_copy(&temp, &addr, ifp->prefix_len);
-+		memcpy(addr.s6_addr, temp.s6_addr, 16);
++	} else if (ifp->prefix_len > 0 && ifp->prefix_len <= 128 &&
++		   idev->cnf.variable_slaac) {
++		get_random_bytes(addr.s6_addr, 16);
++		ipv6_addr_prefix_copy(&addr, &ifp->addr, ifp->prefix_len);
 +	}
  	age = (now - ifp->tstamp) / HZ;
  
  	regen_advance = idev->cnf.regen_max_retry *
-@@ -2569,6 +2576,41 @@ static bool is_addr_mode_generate_stable
+@@ -2569,6 +2577,37 @@ static bool is_addr_mode_generate_stable(struct inet6_dev *idev)
  	       idev->cnf.addr_gen_mode == IN6_ADDR_GEN_MODE_RANDOM;
  }
  
-+struct inet6_ifaddr *ipv6_cmp_rcvd_prsnt_prfxs(struct inet6_ifaddr *ifp,
-+					       struct inet6_dev *in6_dev,
-+					       struct net *net,
-+					       const struct prefix_info *pinfo)
++static struct inet6_ifaddr *ipv6_cmp_rcvd_prsnt_prfxs(struct inet6_ifaddr *ifp,
++						      struct inet6_dev *in6_dev,
++						      struct net *net,
++						      const struct prefix_info *pinfo)
 +{
 +	struct inet6_ifaddr *result_base = NULL;
 +	struct inet6_ifaddr *result = NULL;
-+	struct in6_addr curr_net_prfx;
-+	struct in6_addr net_prfx;
 +	bool prfxs_equal;
 +
 +	result_base = result;
@@ -71,10 +95,8 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +	list_for_each_entry_rcu(ifp, &in6_dev->addr_list, if_list) {
 +		if (!net_eq(dev_net(ifp->idev->dev), net))
 +			continue;
-+		ipv6_addr_prefix_copy(&net_prfx, &pinfo->prefix, pinfo->prefix_len);
-+		ipv6_addr_prefix_copy(&curr_net_prfx, &ifp->addr, pinfo->prefix_len);
 +		prfxs_equal =
-+			ipv6_prefix_equal(&net_prfx, &curr_net_prfx, pinfo->prefix_len);
++			ipv6_prefix_equal(&pinfo->prefix, &ifp->addr, pinfo->prefix_len);
 +		if (prfxs_equal && pinfo->prefix_len == ifp->prefix_len) {
 +			result = ifp;
 +			in6_ifa_hold(ifp);
@@ -93,7 +115,7 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
  int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
  				 const struct prefix_info *pinfo,
  				 struct inet6_dev *in6_dev,
-@@ -2576,9 +2618,17 @@ int addrconf_prefix_rcv_add_addr(struct
+@@ -2576,9 +2615,17 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
  				 u32 addr_flags, bool sllao, bool tokenized,
  				 __u32 valid_lft, u32 prefered_lft)
  {
@@ -103,16 +125,16 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
  	int create = 0;
  
 +	if (plen > 0 && plen <= 128 && plen != 64 &&
-+	    in6_dev->cnf.addr_gen_mode != IN6_ADDR_GEN_MODE_STABLE_PRIVACY) {
++	    in6_dev->cnf.addr_gen_mode != IN6_ADDR_GEN_MODE_STABLE_PRIVACY &&
++	    in6_dev->cnf.variable_slaac)
 +		ifp = ipv6_cmp_rcvd_prsnt_prfxs(ifp, in6_dev, net, pinfo);
-+	} else if (plen == 64) {
++	else
 +		ifp = ipv6_get_ifaddr(net, addr, dev, 1);
-+	}
 +
  	if (!ifp && valid_lft) {
  		int max_addresses = in6_dev->cnf.max_addresses;
  		struct ifa6_config cfg = {
-@@ -2657,6 +2707,91 @@ int addrconf_prefix_rcv_add_addr(struct
+@@ -2657,6 +2704,90 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
  }
  EXPORT_SYMBOL_GPL(addrconf_prefix_rcv_add_addr);
  
@@ -179,15 +201,14 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
 +
 +		sha1_transform(digest, data.__data, workspace);
 +
-+		temp = *address;
 +		temp.s6_addr32[0] = (__force __be32)digest[0];
 +		temp.s6_addr32[1] = (__force __be32)digest[1];
 +		temp.s6_addr32[2] = (__force __be32)digest[2];
 +		temp.s6_addr32[3] = (__force __be32)digest[3];
 +	} else {
-+		temp = *address;
 +		get_random_bytes(temp.s6_addr32, 16);
 +	}
++
 +	spin_unlock_bh(&lock);
 +
 +	if (ipv6_reserved_interfaceid(temp)) {
@@ -204,12 +225,13 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
  void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
  {
  	struct prefix_info *pinfo;
-@@ -2781,9 +2916,33 @@ void addrconf_prefix_rcv(struct net_devi
+@@ -2781,9 +2912,34 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
  				dev_addr_generated = true;
  			}
  			goto ok;
 +		} else if (pinfo->prefix_len != 64 &&
-+			   pinfo->prefix_len > 0 && pinfo->prefix_len <= 128) {
++			   pinfo->prefix_len > 0 && pinfo->prefix_len <= 128 &&
++			   in6_dev->cnf.variable_slaac) {
 +			/* SLAAC with prefixes of arbitrary length (Variable SLAAC).
 +			 * draft-mishra-6man-variable-slaac
 +			 * draft-mishra-v6ops-variable-slaac-problem-stmt
@@ -240,7 +262,7 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
  		goto put;
  
  ok:
-@@ -3186,22 +3345,6 @@ void addrconf_add_linklocal(struct inet6
+@@ -3186,22 +3342,6 @@ void addrconf_add_linklocal(struct inet6_dev *idev,
  }
  EXPORT_SYMBOL_GPL(addrconf_add_linklocal);
  
@@ -263,3 +285,25 @@ diff -rupN net-next-5.10.0-rc2/net/ipv6/addrconf.c net-next-patch-5.10.0-rc2/net
  static int ipv6_generate_stable_address(struct in6_addr *address,
  					u8 dad_count,
  					const struct inet6_dev *idev)
+@@ -5517,6 +5657,7 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
+ 	array[DEVCONF_DISABLE_POLICY] = cnf->disable_policy;
+ 	array[DEVCONF_NDISC_TCLASS] = cnf->ndisc_tclass;
+ 	array[DEVCONF_RPL_SEG_ENABLED] = cnf->rpl_seg_enabled;
++	array[DEVCONF_VARIABLE_SLAAC] = cnf->variable_slaac;
+ }
+ 
+ static inline size_t inet6_ifla6_size(void)
+@@ -6897,6 +7038,13 @@ static const struct ctl_table addrconf_sysctl[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= proc_dointvec,
+ 	},
++	{
++		.procname	= "variable_slaac",
++		.data		= &ipv6_devconf.variable_slaac,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
+ 	{
+ 		/* sentinel */
+ 	}
