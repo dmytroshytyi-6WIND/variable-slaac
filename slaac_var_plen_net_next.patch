@@ -1,11 +1,12 @@
-Variable SLAAC: SLAAC with prefixes of arbitrary length in PIO (randomly
+Variable SLAAC [Can be activated via sysctl]: 
+SLAAC with prefixes of arbitrary length in PIO (randomly
 generated hostID or stable privacy + privacy extensions).
 The main problem is that SLAAC RA or PD allocates a /64 by the Wireless
 carrier 4G, 5G to a mobile hotspot, however segmentation of the /64 via
 SLAAC is required so that downstream interfaces can be further subnetted.
 Example: uCPE device (4G + WI-FI enabled) receives /64 via Wireless, and
-assigns /72 to VNF-Firewall, /72 to WIFI, /72 to VNF-Router, /72 to
-Load-Balancer and /72 to wired connected devices.
+assigns /72 to VNF-Firewall, /72 to WIFI, /72 to Load-Balancer 
+and /72 to wired connected devices.
 IETF document that defines problem statement:
 draft-mishra-v6ops-variable-slaac-problem-stmt
 IETF document that specifies variable slaac:
@@ -40,7 +41,7 @@ index 13e8751bf24a..f2af4f9fba2d 100644
  
  
 diff --git a/net/ipv6/addrconf.c b/net/ipv6/addrconf.c
-index eff2cacd5209..07afe4ce984e 100644
+index eff2cacd5209..4afaf2bc8d8b 100644
 --- a/net/ipv6/addrconf.c
 +++ b/net/ipv6/addrconf.c
 @@ -236,6 +236,7 @@ static struct ipv6_devconf ipv6_devconf __read_mostly = {
@@ -77,7 +78,7 @@ index eff2cacd5209..07afe4ce984e 100644
  	age = (now - ifp->tstamp) / HZ;
  
  	regen_advance = idev->cnf.regen_max_retry *
-@@ -2569,6 +2577,37 @@ static bool is_addr_mode_generate_stable(struct inet6_dev *idev)
+@@ -2569,6 +2577,31 @@ static bool is_addr_mode_generate_stable(struct inet6_dev *idev)
  	       idev->cnf.addr_gen_mode == IN6_ADDR_GEN_MODE_RANDOM;
  }
  
@@ -86,11 +87,9 @@ index eff2cacd5209..07afe4ce984e 100644
 +						      struct net *net,
 +						      const struct prefix_info *pinfo)
 +{
-+	struct inet6_ifaddr *result_base = NULL;
 +	struct inet6_ifaddr *result = NULL;
 +	bool prfxs_equal;
 +
-+	result_base = result;
 +	rcu_read_lock();
 +	list_for_each_entry_rcu(ifp, &in6_dev->addr_list, if_list) {
 +		if (!net_eq(dev_net(ifp->idev->dev), net))
@@ -104,18 +103,14 @@ index eff2cacd5209..07afe4ce984e 100644
 +		}
 +	}
 +	rcu_read_unlock();
-+	if (result_base != result)
-+		ifp = result;
-+	else
-+		ifp = NULL;
 +
-+	return ifp;
++	return result;
 +}
 +
  int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
  				 const struct prefix_info *pinfo,
  				 struct inet6_dev *in6_dev,
-@@ -2576,9 +2615,17 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
+@@ -2576,9 +2609,17 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
  				 u32 addr_flags, bool sllao, bool tokenized,
  				 __u32 valid_lft, u32 prefered_lft)
  {
@@ -134,7 +129,7 @@ index eff2cacd5209..07afe4ce984e 100644
  	if (!ifp && valid_lft) {
  		int max_addresses = in6_dev->cnf.max_addresses;
  		struct ifa6_config cfg = {
-@@ -2657,6 +2704,90 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
+@@ -2657,6 +2698,90 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
  }
  EXPORT_SYMBOL_GPL(addrconf_prefix_rcv_add_addr);
  
@@ -225,7 +220,7 @@ index eff2cacd5209..07afe4ce984e 100644
  void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
  {
  	struct prefix_info *pinfo;
-@@ -2781,9 +2912,34 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
+@@ -2781,9 +2906,34 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
  				dev_addr_generated = true;
  			}
  			goto ok;
@@ -262,7 +257,7 @@ index eff2cacd5209..07afe4ce984e 100644
  		goto put;
  
  ok:
-@@ -3186,22 +3342,6 @@ void addrconf_add_linklocal(struct inet6_dev *idev,
+@@ -3186,22 +3336,6 @@ void addrconf_add_linklocal(struct inet6_dev *idev,
  }
  EXPORT_SYMBOL_GPL(addrconf_add_linklocal);
  
@@ -285,7 +280,7 @@ index eff2cacd5209..07afe4ce984e 100644
  static int ipv6_generate_stable_address(struct in6_addr *address,
  					u8 dad_count,
  					const struct inet6_dev *idev)
-@@ -5517,6 +5657,7 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
+@@ -5517,6 +5651,7 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
  	array[DEVCONF_DISABLE_POLICY] = cnf->disable_policy;
  	array[DEVCONF_NDISC_TCLASS] = cnf->ndisc_tclass;
  	array[DEVCONF_RPL_SEG_ENABLED] = cnf->rpl_seg_enabled;
@@ -293,7 +288,7 @@ index eff2cacd5209..07afe4ce984e 100644
  }
  
  static inline size_t inet6_ifla6_size(void)
-@@ -6897,6 +7038,13 @@ static const struct ctl_table addrconf_sysctl[] = {
+@@ -6897,6 +7032,13 @@ static const struct ctl_table addrconf_sysctl[] = {
  		.mode		= 0644,
  		.proc_handler	= proc_dointvec,
  	},
